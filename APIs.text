@@ -1,0 +1,91 @@
+
+ok I will give you all the apis from docs, give me your input
+Search
+https://newsapi.org/docs/get-started#search (link to checkout)
+GET https://newsapi.org/v2/everything?q=Apple&from=2025-10-01&sortBy=popularity&apiKey=API_KEY
+var url = 'https://newsapi.org/v2/everything?' +
+          'q=Apple&' +
+          'from=2025-10-01&' +
+          'sortBy=popularity&' +
+          'apiKey=';
+
+var req = new Request(url);
+
+fetch(req)
+    .then(function(response) {
+        console.log(response.json());
+    })
+
+ 
+GET https://newsapi.org/v2/top-headlines?country=us&apiKey=API_KEY
+var url = 'https://newsapi.org/v2/top-headlines?' +
+          'country=us&' +
+          'apiKey=';
+var req = new Request(url);
+fetch(req)
+    .then(function(response) {
+        console.log(response.json());
+    })
+
+
+
+GET https://newsapi.org/v2/top-headlines?sources=bbc-news&apiKey=API_KEY
+
+
+var url = 'https://newsapi.org/v2/top-headlines?' +
+          'sources=bbc-news&' +
+          'apiKey=';
+var req = new Request(url);
+fetch(req)
+    .then(function(response) {
+        console.log(response.json());
+    })
+
+
+https://newsapi.org/docs/get-started#top-headlines (link to checkout)
+GET https://newsapi.org/v2/everything?q=Apple&from=2025-10-01&sortBy=popularity&apiKey=API_KEY
+var url = 'https://newsapi.org/v2/everything?' +
+          'q=Apple&' +
+          'from=2025-10-01&' +
+          'sortBy=popularity&' +
+          'apiKey=';
+
+var req = new Request(url);
+
+fetch(req)
+    .then(function(response) {
+        console.log(response.json());
+    })
+
+
+GET https://newsapi.org/v2/top-headlines?country=us&apiKey=API_KEY
+var url = 'https://newsapi.org/v2/top-headlines?' +
+          'country=us&' +
+          'apiKey=';
+var req = new Request(url);
+fetch(req)
+    .then(function(response) {
+        console.log(response.json());
+    })
+
+GET https://newsapi.org/v2/top-headlines?sources=bbc-news&apiKey=API_KEY
+var url = 'https://newsapi.org/v2/top-headlines?' +
+          'sources=bbc-news&' +
+          'apiKey=';
+var req = new Request(url);
+fetch(req)
+    .then(function(response) {
+        console.log(response.json());
+    })
+
+https://newsapi.org/docs/endpoints/top-headlines (link to checkout)
+
+GET https://newsapi.org/v2/top-headlines?country=us&apiKey=XXX
+GET https://newsapi.org/v2/top-headlines?sources=bbc-news&apiKey=XXX
+GET https://newsapi.org/v2/top-headlines?q=trump&apiKey=XXX
+
+
+https://newsapi.org/docs/endpoints/sources (link to checkout)
+GET https://newsapi.org/v2/top-headlines/sources?apiKey=API_KEY
+GET https://newsapi.org/v2/top-headlines/sources?category=businessapiKey=API_KEY
+GET https://newsapi.org/v2/top-headlines/sources?country=usapiKey=API_KEY

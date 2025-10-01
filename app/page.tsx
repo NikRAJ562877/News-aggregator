@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { NewsCard } from "@/components/news-card"
 import { SignificanceChart } from "@/components/significance-chart"
 import { Search, Filter, Globe, TrendingUp, AlertTriangle } from "lucide-react"
-import type { NewsArticle } from "./api/news/route"
+import type { NewsArticle } from "@/lib/types"
 
 export default function NewsAggregator() {
   const [articles, setArticles] = useState<NewsArticle[]>([])
@@ -68,17 +68,26 @@ export default function NewsAggregator() {
     fetchNews()
   }, [])
 
+  // Fetch news only once on component mount
+  useEffect(() => {
+    fetchNews()
+  }, [])
+
+  // This effect handles all client-side filtering
   useEffect(() => {
     filterArticles()
   }, [articles, searchTerm, selectedCategory, selectedRegion, minSignificance])
 
   const fetchNews = async () => {
+    setLoading(true)
     try {
-      const response = await fetch("/api/news")
+      // No more query params needed, the API gets all topics
+      const response = await fetch(`/api/news`)
       const data = await response.json()
-      setArticles(data.articles)
+      setArticles(data.articles || []) // Ensure articles is always an array
     } catch (error) {
       console.error("Failed to fetch news:", error)
+      setArticles([]) // Clear articles on error
     } finally {
       setLoading(false)
     }
@@ -91,14 +100,16 @@ export default function NewsAggregator() {
       filtered = filtered.filter(
         (article) =>
           article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          article.description.toLowerCase().includes(searchTerm.toLowerCase()),
+          (article.description || "").toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
 
+    // The backend now provides the category, so this filter will work correctly.
     if (selectedCategory !== "all") {
       filtered = filtered.filter((article) => article.category === selectedCategory)
     }
 
+    // Region filtering will work after analysis populates the region field.
     if (selectedRegion !== "all") {
       filtered = filtered.filter((article) => article.region === selectedRegion)
     }
@@ -122,7 +133,13 @@ export default function NewsAggregator() {
       // Update article with AI analysis
       const updatedArticles = articles.map((a) =>
         a.url === article.url
-          ? { ...a, significance: analysis.significance, category: analysis.category, region: analysis.region }
+          ? {
+            ...a,
+            significance: analysis.significance,
+            category: analysis.category,
+            region: analysis.region,
+            analysis: analysis.analysis,
+          }
           : a,
       )
       setArticles(updatedArticles)
@@ -131,8 +148,8 @@ export default function NewsAggregator() {
     }
   }
 
-  const categories = [...new Set(articles.map((a) => a.category).filter(Boolean)), "all"]
-  const regions = [...new Set(articles.map((a) => a.region).filter(Boolean)), "all"]
+  const categories = [...new Set(articles.map((a) => a.category).filter((c): c is string => !!c))]
+  const regions = [...new Set(articles.map((a) => a.region).filter((r): r is string => !!r))]
   const highSignificanceCount = articles.filter((a) => (a.significance || 0) >= 8).length
   const avgSignificance =
     articles.length > 0

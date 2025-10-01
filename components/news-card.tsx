@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ExternalLink, Clock, Globe } from "lucide-react"
-import type { NewsArticle } from "@/app/api/news/route"
+import type { NewsArticle } from "@/lib/types"
 
 interface NewsCardProps {
   article: NewsArticle
