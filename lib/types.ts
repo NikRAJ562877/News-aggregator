@@ -16,4 +16,6 @@ export interface NewsArticle {
     category?: string
     region?: string
     analysis?: string
-} 
+    // Persona-specific analysis results (optional)
+    personaAnalysis?: any
+}

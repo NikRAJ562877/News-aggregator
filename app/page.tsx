@@ -18,7 +18,7 @@ export default function NewsAggregator() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [selectedRegion, setSelectedRegion] = useState<string>("all")
-  const [selectedPersona, setSelectedPersona] = useState<string>("all")
+  // persona removed from top-level filters
   // removed minSignificance filter (levels handled via modal/batch only)
 
   // Per-article analysis modal state
@@ -26,54 +26,18 @@ export default function NewsAggregator() {
   const [modalLoading, setModalLoading] = useState<boolean>(false)
   const [modalResult, setModalResult] = useState<any>(null)
   const [modalError, setModalError] = useState<string | null>(null)
- // Single-button batch level check state
-   const [isCheckingLevels, setIsCheckingLevels] = useState<boolean>(false)
-   const [checkedCount, setCheckedCount] = useState<number>(0)
-   const [totalToCheck, setTotalToCheck] = useState<number>(0)
-  // Persona analysis modal state
-  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState<boolean>(false)
-  const [personaTargetCountry, setPersonaTargetCountry] = useState<string>("")
-  const [personaLoading, setPersonaLoading] = useState<boolean>(false)
-  const [personaResult, setPersonaResult] = useState<any>(null)
+  const [modalPersonaTarget, setModalPersonaTarget] = useState<string>("")
+  const [modalPersonaLoading, setModalPersonaLoading] = useState<boolean>(false)
+  const [modalPersonaResult, setModalPersonaResult] = useState<any>(null)
+  // Single-button batch level check state
+  const [isCheckingLevels, setIsCheckingLevels] = useState<boolean>(false)
+  const [checkedCount, setCheckedCount] = useState<number>(0)
+  const [totalToCheck, setTotalToCheck] = useState<number>(0)
 
   // Normalize helper must be defined early so filters can use it
   const normalize = (v?: string) => (v ?? "").toString().trim().toLowerCase()
 
-  // Static list of major powers per continent for the Persona selector
-  const majorPowersByContinent: Record<string, string[]> = {
-    Europe: ["United Kingdom", "France", "Germany", "Russia"],
-    Asia: ["China", "India", "Japan"],
-    "North America": ["United States", "Canada", "Mexico"],
-    "South America": ["Brazil", "Argentina"],
-    Africa: ["South Africa", "Nigeria", "Egypt"],
-    Oceania: ["Australia", "New Zealand"],
-    "Middle East": ["Saudi Arabia", "Iran", "Israel", "United Arab Emirates"],
-    Arctic: [],
-    Antarctica: [],
-    Global: [],
-  }
-
-  // Persona options are derived from the selected region: static major powers + dynamic country hints found in articles
-  const personaOptions = useMemo(() => {
-    if (selectedRegion === "all") return ["all"]
-
-    const setOptions = new Set<string>()
-    // Add major powers for the continent first
-    const majors = majorPowersByContinent[selectedRegion]
-    if (majors && majors.length) majors.forEach((m) => setOptions.add(m))
-
-    // Collect dynamic country hints from article text (title/description/content)
-    const candidates = new Set<string>(Object.values(majorPowersByContinent).flat())
-    articles.forEach((a) => {
-      const text = [a.title, a.description, a.content, a.source?.name].filter(Boolean).join(' ').toLowerCase()
-      candidates.forEach((cand) => {
-        const lower = cand.toLowerCase()
-        if (text.includes(lower)) setOptions.add(cand)
-      })
-    })
-
-    return ["all", ...Array.from(setOptions).sort()]
-  }, [selectedRegion, articles])
+  // persona logic removed — persona selection moved into per-article modal
 
   useEffect(() => {
     console.log("[v0] ========== AI NEWS AGGREGATOR FEATURES ==========")
@@ -131,7 +95,7 @@ export default function NewsAggregator() {
   // This effect handles all client-side filtering
   useEffect(() => {
     filterArticles()
-  }, [articles, searchTerm, selectedCategory, selectedRegion, selectedPersona])
+  }, [articles, searchTerm, selectedCategory, selectedRegion])
 
   const fetchNews = async () => {
     setLoading(true)
@@ -169,16 +133,7 @@ export default function NewsAggregator() {
       filtered = filtered.filter((article) => normalize(article.region) === normalize(selectedRegion))
     }
 
-    // Persona filter: enabled only when a region is selected. Match persona against article text and source.
-    if (selectedPersona !== "all") {
-      filtered = filtered.filter((article) => {
-        const text = [article.title, article.description, article.content, article.source?.name]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-        return text.includes(selectedPersona.toLowerCase()) || normalize(article.source?.name) === normalize(selectedPersona)
-      })
-    }
+    // persona filtering removed
 
     // minSignificance removed — levels handled interactively via the modal or batch-check.
 
@@ -209,6 +164,42 @@ export default function NewsAggregator() {
       setModalError(error?.message ?? 'Analysis failed')
     } finally {
       setModalLoading(false)
+    }
+  }
+
+  // Evaluate persona impact (country) for the article currently open in modal
+  const evaluatePersona = async () => {
+    if (!modalArticle || !modalPersonaTarget) return
+    setModalPersonaLoading(true)
+    setModalPersonaResult(null)
+    try {
+      const payload = {
+        targetCountry: modalPersonaTarget,
+        article: {
+          title: modalArticle.title,
+          url: modalArticle.url,
+          significance: modalResult?.significance ?? null,
+          category: modalResult?.category ?? modalArticle.category,
+          region: modalResult?.region ?? modalArticle.region,
+          description: modalArticle.description,
+        },
+      }
+      const res = await fetch('/api/persona-evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || 'Persona evaluation failed')
+      }
+      const json = await res.json()
+      setModalPersonaResult(json)
+    } catch (err: any) {
+      console.error('Persona evaluation failed', err)
+      setModalPersonaResult({ error: err?.message ?? 'Evaluation failed' })
+    } finally {
+      setModalPersonaLoading(false)
     }
   }
 
@@ -377,28 +368,7 @@ export default function NewsAggregator() {
                 </SelectContent>
               </Select>
 
-              <Select value={selectedPersona} onValueChange={setSelectedPersona}>
-                <SelectTrigger>
-                  <SelectValue placeholder={selectedRegion === 'all' ? 'Select region first' : 'Persona'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {personaOptions.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p === 'all' ? 'All Personas' : p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* level dropdown removed per request */}
-
-              <Button
-                variant="secondary"
-                onClick={() => setIsPersonaModalOpen(true)}
-                disabled={selectedPersona === 'all' || filteredArticles.length === 0}
-              >
-                Analyze Persona
-              </Button>
+              {/* Persona select removed from filters (moved to per-article modal) */}
 
               <Button
                 variant="outline"
@@ -406,7 +376,6 @@ export default function NewsAggregator() {
                   setSearchTerm("")
                   setSelectedCategory("all")
                   setSelectedRegion("all")
-                  setSelectedPersona("all")
                 }}
               >
                 Clear Filters
@@ -439,35 +408,156 @@ export default function NewsAggregator() {
                           <div><strong>Analysis:</strong> <div className="mt-1 text-muted-foreground">{modalResult.analysis ?? 'No details'}</div></div>
                         </div>
                       )}
-                    </div>
 
-                    <div className="flex gap-2 justify-end mt-4">
-                      <Button variant="ghost" onClick={() => { setModalArticle(null); setModalResult(null); setModalError(null) }} disabled={modalLoading}>Close</Button>
-                      <Button
-                        onClick={() => {
-                          if (!modalResult || !modalArticle) return
-                          // Apply analysis to the article in state
-                          const updated = articles.map((a) =>
-                            a.url === modalArticle.url
-                              ? {
-                                  ...a,
-                                  significance: modalResult.significance,
-                                  category: typeof modalResult.category === 'string' ? modalResult.category.trim() : a.category,
-                                  region: typeof modalResult.region === 'string' ? modalResult.region.trim() : a.region,
-                                  analysis: modalResult.analysis,
-                                }
-                              : a,
-                          )
-                          setArticles(updated)
-                          // close modal
-                          setModalArticle(null)
-                          setModalResult(null)
-                          setModalError(null)
-                        }}
-                        disabled={modalLoading || !modalResult}
-                      >
-                        Apply
-                      </Button>
+                      {/* Persona evaluation input inside the modal */}
+                      <div className="mt-4">
+                        <label className="text-sm">Evaluate impact for a country (optional)</label>
+                        <Input id="modal-persona-input" placeholder="Enter country (e.g. United States)" className="mt-2" value={modalPersonaTarget}
+                          onChange={(e) => setModalPersonaTarget(e.target.value)} />
+                        <div className="flex gap-2 mt-2">
+                          <Button size="sm" onClick={evaluatePersona} disabled={modalPersonaLoading || !modalPersonaTarget || !modalArticle}>
+                            {modalPersonaLoading ? 'Evaluating...' : 'Evaluate for Country'}
+                          </Button>
+                        </div>
+                        <div className="mt-3 text-sm max-h-80 overflow-auto bg-muted/10 p-3 rounded">
+                          {modalPersonaLoading && <div>Generating persona analysis…</div>}
+
+                          {!modalPersonaLoading && modalPersonaResult && !modalPersonaResult.error && (
+                            <div className="space-y-3">
+                              {/* Impact */}
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm font-medium">Impact:</span>
+                                <span
+                                  className={
+                                    `inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
+                                      modalPersonaResult.impact === 'positive'
+                                        ? 'bg-green-600 text-white'
+                                        : modalPersonaResult.impact === 'negative'
+                                        ? 'bg-red-600 text-white'
+                                        : 'bg-gray-300 text-gray-800'
+                                    }`
+                                  }
+                                >
+                                  {String(modalPersonaResult.impact).toUpperCase()}
+                                </span>
+                              </div>
+
+                              {/* Good For / Bad For */}
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <div className="text-sm font-medium mb-1">Good for</div>
+                                  <ul className="list-disc list-inside text-sm space-y-1">
+                                    {(modalPersonaResult.goodFor || []).length === 0 && <li className="text-muted-foreground">No clear beneficiaries</li>}
+                                    {(modalPersonaResult.goodFor || []).map((g: string, i: number) => (
+                                      <li key={`good-${i}`}>{g}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+
+                                <div>
+                                  <div className="text-sm font-medium mb-1">Bad for</div>
+                                  <ul className="list-disc list-inside text-sm space-y-1">
+                                    {(modalPersonaResult.badFor || []).length === 0 && <li className="text-muted-foreground">No clear losers</li>}
+                                    {(modalPersonaResult.badFor || []).map((b: string, i: number) => (
+                                      <li key={`bad-${i}`}>{b}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+
+                              {/* Competitors */}
+                              <div>
+                                <div className="text-sm font-medium mb-1">Competitors</div>
+                                {(modalPersonaResult.competitors || []).length === 0 ? (
+                                  <div className="text-sm text-muted-foreground">No competitors identified</div>
+                                ) : (
+                                  <div className="overflow-auto">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="text-left text-xs text-muted-foreground">
+                                          <th className="pb-1">Name</th>
+                                          <th className="pb-1">Effect</th>
+                                          <th className="pb-1">Reason</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(modalPersonaResult.competitors || []).map((c: any, i: number) => (
+                                          <tr key={`comp-${i}`} className="align-top border-t">
+                                            <td className="py-2 pr-4 font-medium">{c.name}</td>
+                                            <td className="py-2 pr-4">{c.effect}</td>
+                                            <td className="py-2 text-muted-foreground">{c.reason}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Recommendation & Steps */}
+                              <div>
+                                <div className="text-sm font-medium mb-1">Recommendation</div>
+                                <div className="text-sm">{modalPersonaResult.recommendation}</div>
+                                <div className="text-sm font-medium mt-2 mb-1">Suggested steps</div>
+                                <ol className="list-decimal list-inside text-sm space-y-1">
+                                  {(modalPersonaResult.steps || []).length === 0 && <li className="text-muted-foreground">No specific steps suggested</li>}
+                                  {(modalPersonaResult.steps || []).map((s: string, i: number) => (
+                                    <li key={`step-${i}`}>{s}</li>
+                                  ))}
+                                </ol>
+                              </div>
+
+                              {/* Confidence */}
+                              <div>
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                  <span>Confidence</span>
+                                  <span>{(modalPersonaResult.confidence ?? 0)}%</span>
+                                </div>
+                                <div className="w-full bg-muted rounded h-2 mt-1 overflow-hidden">
+                                  <div className="h-full bg-primary" style={{ width: `${Math.min(100, modalPersonaResult.confidence ?? 0)}%` }} />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Show raw fallback if model returned non-JSON or error */}
+                          {!modalPersonaLoading && modalPersonaResult && modalPersonaResult.error && (
+                            <div className="text-sm text-destructive">{modalPersonaResult.error}</div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 justify-end mt-4">
+                        <Button variant="ghost" onClick={() => { setModalArticle(null); setModalResult(null); setModalError(null) }} disabled={modalLoading}>Close</Button>
+                        <Button
+                          onClick={() => {
+                            if (!modalResult || !modalArticle) return
+                            // Apply analysis to the article in state. Also attach personaAnalysis if available.
+                            const updated = articles.map((a) =>
+                              a.url === modalArticle.url
+                                ? {
+                                    ...a,
+                                    significance: modalResult.significance,
+                                    category: typeof modalResult.category === 'string' ? modalResult.category.trim() : a.category,
+                                    region: typeof modalResult.region === 'string' ? modalResult.region.trim() : a.region,
+                                    analysis: modalResult.analysis,
+                                    personaAnalysis: modalPersonaResult ?? a.personaAnalysis,
+                                  }
+                                : a,
+                            )
+                            setArticles(updated)
+                            // close modal and clear persona fields
+                            setModalArticle(null)
+                            setModalResult(null)
+                            setModalError(null)
+                            setModalPersonaTarget('')
+                            setModalPersonaResult(null)
+                          }}
+                          disabled={modalLoading || !modalResult}
+                        >
+                          Apply
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -519,9 +609,7 @@ export default function NewsAggregator() {
                   .map((category) => {
                     const count = filteredArticles.filter((a) => a.category === category).length
                     const avgSig =
-                      filteredArticles
-                        .filter((a) => a.category === category)
-                        .reduce((sum, a) => sum + (a.significance || 0), 0) / count || 0
+                      (filteredArticles.filter((a) => a.category === category).reduce((sum, a) => sum + (a.significance || 0), 0) / (count || 1)) || 0
                     return (
                       <div key={category} className="flex justify-between items-center">
                         <span className="text-sm">{category}</span>
