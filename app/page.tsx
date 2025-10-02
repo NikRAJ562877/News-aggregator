@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,62 @@ export default function NewsAggregator() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [selectedRegion, setSelectedRegion] = useState<string>("all")
-  const [minSignificance, setMinSignificance] = useState<string>("any")
+  const [selectedPersona, setSelectedPersona] = useState<string>("all")
+  // removed minSignificance filter (levels handled via modal/batch only)
+
+  // Per-article analysis modal state
+  const [modalArticle, setModalArticle] = useState<NewsArticle | null>(null)
+  const [modalLoading, setModalLoading] = useState<boolean>(false)
+  const [modalResult, setModalResult] = useState<any>(null)
+  const [modalError, setModalError] = useState<string | null>(null)
+ // Single-button batch level check state
+   const [isCheckingLevels, setIsCheckingLevels] = useState<boolean>(false)
+   const [checkedCount, setCheckedCount] = useState<number>(0)
+   const [totalToCheck, setTotalToCheck] = useState<number>(0)
+  // Persona analysis modal state
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState<boolean>(false)
+  const [personaTargetCountry, setPersonaTargetCountry] = useState<string>("")
+  const [personaLoading, setPersonaLoading] = useState<boolean>(false)
+  const [personaResult, setPersonaResult] = useState<any>(null)
+
+  // Normalize helper must be defined early so filters can use it
+  const normalize = (v?: string) => (v ?? "").toString().trim().toLowerCase()
+
+  // Static list of major powers per continent for the Persona selector
+  const majorPowersByContinent: Record<string, string[]> = {
+    Europe: ["United Kingdom", "France", "Germany", "Russia"],
+    Asia: ["China", "India", "Japan"],
+    "North America": ["United States", "Canada", "Mexico"],
+    "South America": ["Brazil", "Argentina"],
+    Africa: ["South Africa", "Nigeria", "Egypt"],
+    Oceania: ["Australia", "New Zealand"],
+    "Middle East": ["Saudi Arabia", "Iran", "Israel", "United Arab Emirates"],
+    Arctic: [],
+    Antarctica: [],
+    Global: [],
+  }
+
+  // Persona options are derived from the selected region: static major powers + dynamic country hints found in articles
+  const personaOptions = useMemo(() => {
+    if (selectedRegion === "all") return ["all"]
+
+    const setOptions = new Set<string>()
+    // Add major powers for the continent first
+    const majors = majorPowersByContinent[selectedRegion]
+    if (majors && majors.length) majors.forEach((m) => setOptions.add(m))
+
+    // Collect dynamic country hints from article text (title/description/content)
+    const candidates = new Set<string>(Object.values(majorPowersByContinent).flat())
+    articles.forEach((a) => {
+      const text = [a.title, a.description, a.content, a.source?.name].filter(Boolean).join(' ').toLowerCase()
+      candidates.forEach((cand) => {
+        const lower = cand.toLowerCase()
+        if (text.includes(lower)) setOptions.add(cand)
+      })
+    })
+
+    return ["all", ...Array.from(setOptions).sort()]
+  }, [selectedRegion, articles])
 
   useEffect(() => {
     console.log("[v0] ========== AI NEWS AGGREGATOR FEATURES ==========")
@@ -76,7 +131,7 @@ export default function NewsAggregator() {
   // This effect handles all client-side filtering
   useEffect(() => {
     filterArticles()
-  }, [articles, searchTerm, selectedCategory, selectedRegion, minSignificance])
+  }, [articles, searchTerm, selectedCategory, selectedRegion, selectedPersona])
 
   const fetchNews = async () => {
     setLoading(true)
@@ -104,56 +159,134 @@ export default function NewsAggregator() {
       )
     }
 
-    // The backend now provides the category, so this filter will work correctly.
+    // Category filter: compare normalized values so casing/whitespace differences don't break the filter
     if (selectedCategory !== "all") {
-      filtered = filtered.filter((article) => article.category === selectedCategory)
+      filtered = filtered.filter((article) => normalize(article.category) === normalize(selectedCategory))
     }
 
-    // Region filtering will work after analysis populates the region field.
+    // Region filter: use same normalization as categories
     if (selectedRegion !== "all") {
-      filtered = filtered.filter((article) => article.region === selectedRegion)
+      filtered = filtered.filter((article) => normalize(article.region) === normalize(selectedRegion))
     }
 
-    if (minSignificance !== "any") {
-      filtered = filtered.filter((article) => (article.significance || 0) >= Number.parseInt(minSignificance))
+    // Persona filter: enabled only when a region is selected. Match persona against article text and source.
+    if (selectedPersona !== "all") {
+      filtered = filtered.filter((article) => {
+        const text = [article.title, article.description, article.content, article.source?.name]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return text.includes(selectedPersona.toLowerCase()) || normalize(article.source?.name) === normalize(selectedPersona)
+      })
     }
+
+    // minSignificance removed — levels handled interactively via the modal or batch-check.
 
     setFilteredArticles(filtered)
   }
 
+  // When user clicks Analyze on a news card, open a modal and run analysis there.
+  // Do NOT immediately overwrite the article in the list — let user review and Apply.
   const handleAnalyze = async (article: NewsArticle) => {
+    setModalArticle(article)
+    setModalLoading(true)
+    setModalResult(null)
+    setModalError(null)
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ article }),
       })
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(text || 'Analysis failed')
+      }
       const analysis = await response.json()
-
-      // Update article with AI analysis
-      const updatedArticles = articles.map((a) =>
-        a.url === article.url
-          ? {
-            ...a,
-            significance: analysis.significance,
-            category: analysis.category,
-            region: analysis.region,
-            analysis: analysis.analysis,
-          }
-          : a,
-      )
-      setArticles(updatedArticles)
-    } catch (error) {
+      setModalResult(analysis)
+    } catch (error: any) {
       console.error("Analysis failed:", error)
+      setModalError(error?.message ?? 'Analysis failed')
+    } finally {
+      setModalLoading(false)
     }
   }
 
-  const categories = [...new Set(articles.map((a) => a.category).filter((c): c is string => !!c))]
-  const regions = [...new Set(articles.map((a) => a.region).filter((r): r is string => !!r))]
+  // Check levels for all currently displayed (filtered) articles with a small delay between requests.
+  // This sends individual POST requests to /api/analyze for each article sequentially to avoid overloading the LLM.
+  const checkLevelsForDisplayed = async () => {
+    if (isCheckingLevels) return
+    const toCheck = filteredArticles // use already filtered list
+      .filter((a) => a && a.url)
+    if (toCheck.length === 0) return
+
+    setIsCheckingLevels(true)
+    setCheckedCount(0)
+    setTotalToCheck(toCheck.length)
+
+    for (const article of toCheck) {
+      try {
+        // Only call analyze if article is unassessed or you want to re-run every time
+        if (article.significance == null) {
+          const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ article }),
+          })
+          const analysis = await response.json()
+
+          // Merge analysis result into articles list
+          setArticles((prev) =>
+            prev.map((a) =>
+              a.url === article.url
+                ? {
+                    ...a,
+                    significance: analysis.significance,
+                    category: typeof analysis.category === 'string' ? analysis.category.trim() : a.category,
+                    region: typeof analysis.region === 'string' ? analysis.region.trim() : a.region,
+                    analysis: analysis.analysis,
+                  }
+                : a,
+            ),
+          )
+        }
+      } catch (err) {
+        console.error('Batch analyze failed for', article.url, err)
+      } finally {
+        setCheckedCount((c) => c + 1)
+        // small delay between requests to reduce load on the LLM/API
+        await new Promise((r) => setTimeout(r, 400))
+      }
+    }
+
+    setIsCheckingLevels(false)
+    setTotalToCheck(0)
+  }
+
+  // Derive categories and regions from current articles and include a default 'all'
+  const categories = useMemo(() => {
+    const s = new Set<string>()
+    articles.forEach((a) => {
+      if (a.category && typeof a.category === "string") s.add(a.category.trim())
+    })
+    return ["all", ...Array.from(s).sort()]
+  }, [articles])
+
+  const regions = useMemo(() => {
+    const s = new Set<string>()
+    articles.forEach((a) => {
+      if (a.region && typeof a.region === "string") s.add(a.region.trim())
+    })
+    // Keep 'Global' or other initial tags produced by the API; include 'all' at top
+    return ["all", ...Array.from(s).sort()]
+  }, [articles])
+
   const highSignificanceCount = articles.filter((a) => (a.significance || 0) >= 8).length
+  // Compute average only over assessed articles
+  const analyzedArticles = articles.filter((a) => a.significance != null)
   const avgSignificance =
-    articles.length > 0
-      ? (articles.reduce((sum, a) => sum + (a.significance || 0), 0) / articles.length).toFixed(1)
+    analyzedArticles.length > 0
+      ? (analyzedArticles.reduce((sum, a) => sum + (a.significance || 0), 0) / analyzedArticles.length).toFixed(1)
       : "0"
 
   if (loading) {
@@ -244,16 +377,28 @@ export default function NewsAggregator() {
                 </SelectContent>
               </Select>
 
-              <Select value={minSignificance} onValueChange={setMinSignificance}>
+              <Select value={selectedPersona} onValueChange={setSelectedPersona}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Min Significance" />
+                  <SelectValue placeholder={selectedRegion === 'all' ? 'Select region first' : 'Persona'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="any">Any Level</SelectItem>
-                  <SelectItem value="6">High (6+)</SelectItem>
-                  <SelectItem value="8">Critical (8+)</SelectItem>
+                  {personaOptions.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p === 'all' ? 'All Personas' : p}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+
+              {/* level dropdown removed per request */}
+
+              <Button
+                variant="secondary"
+                onClick={() => setIsPersonaModalOpen(true)}
+                disabled={selectedPersona === 'all' || filteredArticles.length === 0}
+              >
+                Analyze Persona
+              </Button>
 
               <Button
                 variant="outline"
@@ -261,11 +406,72 @@ export default function NewsAggregator() {
                   setSearchTerm("")
                   setSelectedCategory("all")
                   setSelectedRegion("all")
-                  setMinSignificance("any")
+                  setSelectedPersona("all")
                 }}
               >
                 Clear Filters
               </Button>
+
+              {/* Single-button bulk analyze for currently displayed articles */}
+              <Button
+                variant="default"
+                onClick={checkLevelsForDisplayed}
+                disabled={isCheckingLevels || filteredArticles.length === 0}
+              >
+                {isCheckingLevels ? `Checking ${checkedCount}/${totalToCheck}` : 'Check Levels'}
+              </Button>
+              {/* Per-article analysis modal (opened when clicking Analyze on a card) */}
+              {modalArticle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/40" onClick={() => { if (!modalLoading) { setModalArticle(null); setModalResult(null); setModalError(null) } }} />
+                  <div className="bg-card rounded-md shadow-lg max-w-2xl w-full p-6 z-10">
+                    <h3 className="text-lg font-semibold">Article Analysis</h3>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{modalArticle.title}</p>
+
+                    <div className="mt-4">
+                      {modalLoading && <div className="text-sm">Analyzing article…</div>}
+                      {modalError && <div className="text-sm text-destructive">{modalError}</div>}
+                      {!modalLoading && modalResult && (
+                        <div className="space-y-2 text-sm">
+                          <div><strong>Significance:</strong> {modalResult.significance ?? 'N/A'}/10</div>
+                          <div><strong>Category:</strong> {modalResult.category ?? 'N/A'}</div>
+                          <div><strong>Region:</strong> {modalResult.region ?? 'N/A'}</div>
+                          <div><strong>Analysis:</strong> <div className="mt-1 text-muted-foreground">{modalResult.analysis ?? 'No details'}</div></div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 justify-end mt-4">
+                      <Button variant="ghost" onClick={() => { setModalArticle(null); setModalResult(null); setModalError(null) }} disabled={modalLoading}>Close</Button>
+                      <Button
+                        onClick={() => {
+                          if (!modalResult || !modalArticle) return
+                          // Apply analysis to the article in state
+                          const updated = articles.map((a) =>
+                            a.url === modalArticle.url
+                              ? {
+                                  ...a,
+                                  significance: modalResult.significance,
+                                  category: typeof modalResult.category === 'string' ? modalResult.category.trim() : a.category,
+                                  region: typeof modalResult.region === 'string' ? modalResult.region.trim() : a.region,
+                                  analysis: modalResult.analysis,
+                                }
+                              : a,
+                          )
+                          setArticles(updated)
+                          // close modal
+                          setModalArticle(null)
+                          setModalResult(null)
+                          setModalError(null)
+                        }}
+                        disabled={modalLoading || !modalResult}
+                      >
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

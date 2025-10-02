@@ -22,6 +22,42 @@ async function generateSearchQuery(topic: string): Promise<string> {
   }
 }
 
+// Simple continent/region detection using keywords from article fields.
+// This is a heuristic to provide initial region tags (continents) so the UI
+// can offer continent filters even before AI analysis runs. The AI analysis
+// endpoint may later overwrite these values with more precise regions.
+function detectRegion(article: any): string {
+  const text = [article.title, article.description, article.content, article.source?.name, article.url]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  const regionKeywords: { region: string; keywords: string[] }[] = [
+    { region: 'North America', keywords: ['united states', 'usa', 'us ', 'canada', 'mexico'] },
+    { region: 'South America', keywords: ['brazil', 'argentina', 'colombia', 'chile', 'peru'] },
+    { region: 'Europe', keywords: ['united kingdom', 'uk', 'england', 'france', 'germany', 'spain', 'italy', 'europe', 'eu'] },
+    { region: 'Asia', keywords: ['china', 'india', 'japan', 'korea', 'south korea', 'north korea', 'beijing', 'tokyo', 'seoul', 'asia'] },
+    { region: 'Africa', keywords: ['nigeria', 'kenya', 'south africa', 'egypt', 'africa'] },
+    { region: 'Oceania', keywords: ['australia', 'new zealand', 'oceania'] },
+    { region: 'Middle East', keywords: ['middle east', 'saudi', 'iran', 'iraq', 'israel', 'palestine', 'u.a.e', 'uae'] },
+    { region: 'Arctic', keywords: ['arctic'] },
+    { region: 'Antarctica', keywords: ['antarctica'] },
+  ]
+
+  for (const entry of regionKeywords) {
+    for (const kw of entry.keywords) {
+      if (text.includes(kw)) return entry.region
+    }
+  }
+
+  // If no keyword matched, try some fallback heuristics
+  if (text.includes('european') || text.includes('european union') || text.includes('eu')) return 'Europe'
+  if (text.includes('north america') || text.includes('canadian') || text.includes('american')) return 'North America'
+
+  // Default to Global to indicate no continent-specific match; UI can still show "Global" option
+  return 'Global'
+}
+
 export async function GET(request: NextRequest) {
   const apiKey = process.env.NEWSAPI_KEY
   if (!apiKey) {
@@ -74,7 +110,7 @@ export async function GET(request: NextRequest) {
       content: article.content,
       category: article.category, // The category we tagged earlier
       significance: undefined,
-      region: undefined, // Region will be populated by analysis
+      region: detectRegion(article), // Provide an initial continent/region tag
     }))
 
     return NextResponse.json({ articles })
