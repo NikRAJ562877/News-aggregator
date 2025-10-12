@@ -529,34 +529,6 @@ export default function NewsAggregator() {
 
                       <div className="flex gap-2 justify-end mt-4">
                         <Button variant="ghost" onClick={() => { setModalArticle(null); setModalResult(null); setModalError(null) }} disabled={modalLoading}>Close</Button>
-                        <Button
-                          onClick={() => {
-                            if (!modalResult || !modalArticle) return
-                            // Apply analysis to the article in state. Also attach personaAnalysis if available.
-                            const updated = articles.map((a) =>
-                              a.url === modalArticle.url
-                                ? {
-                                    ...a,
-                                    significance: modalResult.significance,
-                                    category: typeof modalResult.category === 'string' ? modalResult.category.trim() : a.category,
-                                    region: typeof modalResult.region === 'string' ? modalResult.region.trim() : a.region,
-                                    analysis: modalResult.analysis,
-                                    personaAnalysis: modalPersonaResult ?? a.personaAnalysis,
-                                  }
-                                : a,
-                            )
-                            setArticles(updated)
-                            // close modal and clear persona fields
-                            setModalArticle(null)
-                            setModalResult(null)
-                            setModalError(null)
-                            setModalPersonaTarget('')
-                            setModalPersonaResult(null)
-                          }}
-                          disabled={modalLoading || !modalResult}
-                        >
-                          Apply
-                        </Button>
                       </div>
                     </div>
                   </div>
