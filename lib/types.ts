@@ -13,6 +13,7 @@ export interface NewsArticle {
 
     // These will be populated by your AI analysis
     significance?: number
+    sourceReliability?: 'High' | 'Medium' | 'Low' | 'Opinion' | 'Satire'
     category?: string
     region?: string
     analysis?: string

@@ -97,6 +97,9 @@ export async function GET(request: NextRequest) {
     // Deduplicate articles based on URL
     const uniqueArticles = Array.from(new Map(allArticles.map((article) => [article.url, article])).values())
 
+    // Add placeholder reliability data for demonstration
+    const reliabilityLevels: NewsArticle['sourceReliability'][] = ['High', 'Medium', 'Low', 'Opinion', 'Satire']
+
     // Map to our NewsArticle type
     const articles: NewsArticle[] = uniqueArticles.map((article: any) => ({
       title: article.title,
@@ -111,6 +114,7 @@ export async function GET(request: NextRequest) {
       category: article.category, // The category we tagged earlier
       significance: undefined,
       region: detectRegion(article), // Provide an initial continent/region tag
+      sourceReliability: reliabilityLevels[Math.floor(Math.random() * reliabilityLevels.length)],
     }))
 
     return NextResponse.json({ articles })

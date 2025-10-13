@@ -19,6 +19,23 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
     return "bg-secondary"
   }
 
+  const getReliabilityColor = (reliability?: string) => {
+    switch (reliability) {
+      case 'High':
+        return 'bg-green-600'
+      case 'Medium':
+        return 'bg-yellow-500'
+      case 'Low':
+        return 'bg-red-600'
+      case 'Opinion':
+        return 'bg-blue-500'
+      case 'Satire':
+        return 'bg-gray-500'
+      default:
+        return 'bg-muted'
+    }
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
@@ -39,7 +56,7 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
             {formatDate(article.publishedAt)}
@@ -47,6 +64,15 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
           <div className="flex items-center gap-1">
             <Globe className="h-3 w-3" />
             {article.source.name}
+            {article.sourceReliability && (
+              <Badge
+                className={`${getReliabilityColor(
+                  article.sourceReliability
+                )} text-white ml-2`}
+              >
+                {article.sourceReliability}
+              </Badge>
+            )}
           </div>
         </div>
       </CardHeader>
