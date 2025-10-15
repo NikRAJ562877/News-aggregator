@@ -4,7 +4,9 @@ import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ModeToggle } from "@/components/theme-toggle"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,7 +59,7 @@ export default function NewsAggregator() {
     const textIncludes = (txt: string, needle: string) => txt.toLowerCase().includes(needle.toLowerCase())
     const getText = (a: NewsArticle) => `${a.title} ${(a.description || '')} ${(a.content || '')}`
     const countries = [
-      'United States','Canada','Mexico','Brazil','Argentina','Colombia','Chile','Venezuela','Russia','Germany','France','Italy','United Kingdom','Poland','Turkey','China','India','Indonesia','Pakistan','Bangladesh','Japan','South Korea','Thailand','Iran','Israel','Qatar','Saudi Arabia','United Arab Emirates','Nigeria','Ethiopia','Egypt','Kenya','South Africa','Algeria','Australia','New Zealand'
+      'United States', 'Canada', 'Mexico', 'Brazil', 'Argentina', 'Colombia', 'Chile', 'Venezuela', 'Russia', 'Germany', 'France', 'Italy', 'United Kingdom', 'Poland', 'Turkey', 'China', 'India', 'Indonesia', 'Pakistan', 'Bangladesh', 'Japan', 'South Korea', 'Thailand', 'Iran', 'Israel', 'Qatar', 'Saudi Arabia', 'United Arab Emirates', 'Nigeria', 'Ethiopia', 'Egypt', 'Kenya', 'South Africa', 'Algeria', 'Australia', 'New Zealand'
     ]
     for (const c of countries) map[c] = []
     for (const a of articles) {
@@ -280,12 +282,12 @@ export default function NewsAggregator() {
             prev.map((a) =>
               a.url === article.url
                 ? {
-                    ...a,
-                    significance: analysis.significance,
-                    category: typeof analysis.category === 'string' ? analysis.category.trim() : a.category,
-                    region: typeof analysis.region === 'string' ? analysis.region.trim() : a.region,
-                    analysis: analysis.analysis,
-                  }
+                  ...a,
+                  significance: analysis.significance,
+                  category: typeof analysis.category === 'string' ? analysis.category.trim() : a.category,
+                  region: typeof analysis.region === 'string' ? analysis.region.trim() : a.region,
+                  analysis: analysis.analysis,
+                }
                 : a,
             ),
           )
@@ -435,6 +437,7 @@ export default function NewsAggregator() {
                 <AlertTriangle className="h-3 w-3 mr-1" />
                 {highSignificanceCount} Critical
               </Badge>
+              <ModeToggle />
             </div>
           </div>
         </div>
@@ -557,10 +560,9 @@ export default function NewsAggregator() {
                                 <span className="text-sm font-medium">Impact:</span>
                                 <span
                                   className={
-                                    `inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
-                                      modalPersonaResult.impact === 'positive'
-                                        ? 'bg-green-600 text-white'
-                                        : modalPersonaResult.impact === 'negative'
+                                    `inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${modalPersonaResult.impact === 'positive'
+                                      ? 'bg-green-600 text-white'
+                                      : modalPersonaResult.impact === 'negative'
                                         ? 'bg-red-600 text-white'
                                         : 'bg-gray-300 text-gray-800'
                                     }`
@@ -665,67 +667,6 @@ export default function NewsAggregator() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Analytics Dashboard */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <SignificanceChart articles={filteredArticles} />
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Regional Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {regions
-                  .filter((region) => region !== "all")
-                  .map((region) => {
-                    const count = filteredArticles.filter((a) => a.region === region).length
-                    const percentage =
-                      filteredArticles.length > 0 ? Math.round((count / filteredArticles.length) * 100) : 0
-                    return (
-                      <div key={region} className="flex justify-between items-center">
-                        <span className="text-sm">{region}</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full" style={{ width: `${percentage}%` }} />
-                          </div>
-                          <span className="text-xs text-muted-foreground w-8">{count}</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Category Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {categories
-                  .filter((category) => category !== "all")
-                  .map((category) => {
-                    const count = filteredArticles.filter((a) => a.category === category).length
-                    const avgSig =
-                      (filteredArticles.filter((a) => a.category === category).reduce((sum, a) => sum + (a.significance || 0), 0) / (count || 1)) || 0
-                    return (
-                      <div key={category} className="flex justify-between items-center">
-                        <span className="text-sm">{category}</span>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {avgSig.toFixed(1)}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground w-8">{count}</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* World Map */}
         <Card className="mb-8">

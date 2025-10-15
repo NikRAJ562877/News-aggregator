@@ -143,22 +143,9 @@ export function WorldMap({ onHoverContinent, onHoverCountry, onClickCountry, get
                           <animate attributeName="r" values="5;7;5" dur="1.8s" repeatCount="indefinite" />
                         </circle>
                         {/* count badge */}
-                        {articles.length > 1 && (
+                        {articles.length > 0 && (
                           <g
                             transform="translate(6,-10)"
-                            onMouseEnter={(e) => {
-                              const rect = containerRef.current?.getBoundingClientRect()
-                              if (rect) {
-                                setOverlay({ x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12, type: 'list', country: name, articles })
-                              }
-                            }}
-                            onMouseMove={(e) => {
-                              const rect = containerRef.current?.getBoundingClientRect()
-                              if (rect) setOverlay((prev) => (prev ? { ...prev, x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 } : prev))
-                            }}
-                            onMouseLeave={() => {
-                              setOverlay((prev) => (prev && prev.type === 'list' && prev.country === name ? null : prev))
-                            }}
                           >
                             <rect x={0} y={-8} rx={6} ry={6} width={18} height={16} fill="#10b981" />
                             <text x={9} y={3} textAnchor="middle" fill="#064e3b" fontSize={10} fontFamily="system-ui, sans-serif">{Math.min(99, articles.length)}</text>

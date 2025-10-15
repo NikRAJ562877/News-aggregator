@@ -50,11 +50,6 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-lg leading-tight line-clamp-2">{article.title}</CardTitle>
-          {article.significance && (
-            <Badge className={`${getSignificanceColor(article.significance)} text-white shrink-0`}>
-              {article.significance}/10
-            </Badge>
-          )}
         </div>
         <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
