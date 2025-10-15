@@ -5,9 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { NewsCard } from "@/components/news-card"
 import { SignificanceChart } from "@/components/significance-chart"
+import { WorldMap } from "@/components/world-map"
 import { Search, Filter, Globe, TrendingUp, AlertTriangle } from "lucide-react"
 import type { NewsArticle } from "@/lib/types"
 
@@ -18,6 +30,11 @@ export default function NewsAggregator() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [selectedRegion, setSelectedRegion] = useState<string>("all")
+  const [selectedContinent, setSelectedContinent] = useState<string | null>(null)
+  const [selectedStrengthParam, setSelectedStrengthParam] = useState<string | null>(null)
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
+  const [strongCountryCache, setStrongCountryCache] = useState<Record<string, Record<string, string[]>>>({})
+  const [strongParams, setStrongParams] = useState<string[] | null>(null)
   // persona removed from top-level filters
   // removed minSignificance filter (levels handled via modal/batch only)
 
@@ -33,6 +50,26 @@ export default function NewsAggregator() {
   const [isCheckingLevels, setIsCheckingLevels] = useState<boolean>(false)
   const [checkedCount, setCheckedCount] = useState<number>(0)
   const [totalToCheck, setTotalToCheck] = useState<number>(0)
+  const [hoverRegion, setHoverRegion] = useState<string | null>(null)
+  const [hoverCountry, setHoverCountry] = useState<string | null>(null)
+  const articlesByCountry = useMemo(() => {
+    const map: Record<string, { title: string; url: string }[]> = {}
+    const textIncludes = (txt: string, needle: string) => txt.toLowerCase().includes(needle.toLowerCase())
+    const getText = (a: NewsArticle) => `${a.title} ${(a.description || '')} ${(a.content || '')}`
+    const countries = [
+      'United States','Canada','Mexico','Brazil','Argentina','Colombia','Chile','Venezuela','Russia','Germany','France','Italy','United Kingdom','Poland','Turkey','China','India','Indonesia','Pakistan','Bangladesh','Japan','South Korea','Thailand','Iran','Israel','Qatar','Saudi Arabia','United Arab Emirates','Nigeria','Ethiopia','Egypt','Kenya','South Africa','Algeria','Australia','New Zealand'
+    ]
+    for (const c of countries) map[c] = []
+    for (const a of articles) {
+      const text = getText(a)
+      for (const c of countries) {
+        if (textIncludes(text, c)) {
+          map[c].push({ title: a.title, url: a.url })
+        }
+      }
+    }
+    return map
+  }, [articles])
 
   // Normalize helper must be defined early so filters can use it
   const normalize = (v?: string) => (v ?? "").toString().trim().toLowerCase()
@@ -95,7 +132,7 @@ export default function NewsAggregator() {
   // This effect handles all client-side filtering
   useEffect(() => {
     filterArticles()
-  }, [articles, searchTerm, selectedCategory, selectedRegion])
+  }, [articles, searchTerm, selectedCategory, selectedRegion, selectedCountry])
 
   const fetchNews = async () => {
     setLoading(true)
@@ -111,6 +148,12 @@ export default function NewsAggregator() {
       setLoading(false)
     }
   }
+
+  const articleToSearchText = (article: NewsArticle) =>
+    [article.title, article.description, article.content, article.source?.name, article.url]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
 
   const filterArticles = () => {
     let filtered = articles
@@ -131,6 +174,12 @@ export default function NewsAggregator() {
     // Region filter: use same normalization as categories
     if (selectedRegion !== "all") {
       filtered = filtered.filter((article) => normalize(article.region) === normalize(selectedRegion))
+    }
+
+    // Country filter: if a strong country is selected, match by mention in article text
+    if (selectedCountry) {
+      const countryLc = selectedCountry.toLowerCase()
+      filtered = filtered.filter((article) => articleToSearchText(article).includes(countryLc))
     }
 
     // persona filtering removed
@@ -272,6 +321,82 @@ export default function NewsAggregator() {
     return ["all", ...Array.from(s).sort()]
   }, [articles])
 
+  // Continent → Parameter → Countries configuration (curated lists)
+  const continentsConfig: Record<string, Record<string, string[]>> = {
+    "Asia": {
+      "High Population": ["China", "India", "Indonesia", "Pakistan", "Bangladesh"],
+      "Army Strong": ["China", "India", "South Korea", "Japan"],
+      "Political Shift": ["India", "Pakistan", "Thailand", "Bangladesh"],
+      "Diplomatic Strong": ["China", "India", "Japan", "South Korea"],
+    },
+    "Europe": {
+      "High Population": ["Russia", "Germany", "United Kingdom", "France", "Italy"],
+      "Army Strong": ["Russia", "France", "United Kingdom", "Turkey", "Germany"],
+      "Political Shift": ["United Kingdom", "France", "Germany", "Poland", "Italy"],
+      "Diplomatic Strong": ["France", "Germany", "United Kingdom", "Russia"],
+    },
+    "North America": {
+      "High Population": ["United States", "Mexico", "Canada"],
+      "Army Strong": ["United States", "Canada"],
+      "Political Shift": ["United States", "Mexico"],
+      "Diplomatic Strong": ["United States", "Canada", "Mexico"],
+    },
+    "South America": {
+      "High Population": ["Brazil", "Argentina", "Colombia"],
+      "Army Strong": ["Brazil", "Argentina", "Chile"],
+      "Political Shift": ["Brazil", "Argentina", "Venezuela"],
+      "Diplomatic Strong": ["Brazil", "Argentina", "Chile"],
+    },
+    "Africa": {
+      "High Population": ["Nigeria", "Ethiopia", "Egypt", "South Africa"],
+      "Army Strong": ["Egypt", "Algeria", "Nigeria", "South Africa"],
+      "Political Shift": ["Nigeria", "Ethiopia", "Kenya"],
+      "Diplomatic Strong": ["South Africa", "Egypt", "Nigeria", "Kenya"],
+    },
+    "Middle East": {
+      "High Population": ["Turkey", "Iran", "Saudi Arabia"],
+      "Army Strong": ["Turkey", "Iran", "Saudi Arabia", "Israel"],
+      "Political Shift": ["Israel", "Iran", "Saudi Arabia"],
+      "Diplomatic Strong": ["Saudi Arabia", "United Arab Emirates", "Qatar", "Turkey"],
+    },
+    "Oceania": {
+      "High Population": ["Australia", "Papua New Guinea"],
+      "Army Strong": ["Australia"],
+      "Political Shift": ["Australia"],
+      "Diplomatic Strong": ["Australia", "New Zealand"],
+    },
+  }
+
+  const defaultStrengthParameters = [
+    "High Population",
+    "Army Strong",
+    "Political Shift",
+    "Diplomatic Strong",
+  ]
+
+  const CONTINENTS = [
+    "Asia",
+    "Europe",
+    "North America",
+    "South America",
+    "Africa",
+    "Middle East",
+    "Oceania",
+  ]
+
+  const ensureStrongCountries = async (continent: string) => {
+    if (strongCountryCache[continent]) return
+    try {
+      const res = await fetch(`/api/strong-countries?continent=${encodeURIComponent(continent)}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error('Failed strong-countries fetch')
+      const data = await res.json()
+      setStrongCountryCache((prev) => ({ ...prev, [continent]: data.parameters || {} }))
+      if (Array.isArray(data.params) && data.params.length > 0) setStrongParams(data.params)
+    } catch {
+      // silently fall back to curated config
+    }
+  }
+
   const highSignificanceCount = articles.filter((a) => (a.significance || 0) >= 8).length
   // Compute average only over assessed articles
   const analyzedArticles = articles.filter((a) => a.significance != null)
@@ -376,6 +501,9 @@ export default function NewsAggregator() {
                   setSearchTerm("")
                   setSelectedCategory("all")
                   setSelectedRegion("all")
+                  setSelectedContinent(null)
+                  setSelectedStrengthParam(null)
+                  setSelectedCountry(null)
                 }}
               >
                 Clear Filters
@@ -598,6 +726,59 @@ export default function NewsAggregator() {
             </CardContent>
           </Card>
         </div>
+
+        {/* World Map */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>
+              <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">World Map</span>
+            </CardTitle>
+            <div className="mt-2 text-xs text-muted-foreground">Click a country marker to filter the articles below. Hover markers to preview headlines. Use trackpad/mouse to zoom & pan.</div>
+          </CardHeader>
+          <CardContent>
+            <div className="w-full">
+              <WorldMap
+                className="w-full h-auto"
+                onHoverContinent={(c) => setHoverRegion(c)}
+                onHoverCountry={(c) => setHoverCountry(c)}
+                onClickCountry={(c) => {
+                  setSelectedRegion('all')
+                  setSelectedCountry(c)
+                }}
+                getArticlesForCountry={(c) => articlesByCountry[c] || []}
+              />
+            </div>
+            <div className="mt-3">
+              {selectedCountry && (
+                <Button size="sm" variant="secondary" onClick={() => setSelectedCountry(null)}>
+                  Clear country selection
+                </Button>
+              )}
+            </div>
+
+            {/*
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mt-6">
+              <div className="col-span-2" />
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">Hover a region to preview articles</div>
+                <div className="space-y-3 max-h-80 overflow-auto">
+                  {(hoverCountry
+                    ? articles.filter((a) => (a.title + ' ' + (a.description || '') + ' ' + (a.content || '')).toLowerCase().includes(hoverCountry.toLowerCase()))
+                    : hoverRegion
+                    ? articles.filter((a) => normalize(a.region) === normalize(hoverRegion))
+                    : [])
+                    .slice(0, 8)
+                    .map((a) => (
+                    <div key={a.url} className="text-sm">
+                      <div className="font-medium line-clamp-2">{a.title}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-2">{a.description}</div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            */}
+          </CardContent>
+        </Card>
 
         {/* News Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
