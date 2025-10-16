@@ -429,14 +429,7 @@ export default function NewsAggregator() {
               <p className="text-muted-foreground mt-1">AI-Powered Geopolitical News Analysis</p>
             </div>
             <div className="flex items-center gap-4">
-              <Badge variant="default" className="text-sm">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                Avg: {avgSignificance}/10
-              </Badge>
-              <Badge variant="destructive" className="text-sm">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                {highSignificanceCount} Critical
-              </Badge>
+
               <ModeToggle />
             </div>
           </div>
@@ -663,9 +656,9 @@ export default function NewsAggregator() {
             <div className="mt-2 text-xs text-muted-foreground">Click a country marker to filter the articles below. Hover markers to preview headlines. Use trackpad/mouse to zoom & pan.</div>
           </CardHeader>
           <CardContent>
-            <div className="w-full">
+            <div className="w-full flex justify-center  items-center">
               <WorldMap
-                className="w-full h-auto"
+                className="w-[80%] h-auto"
                 onHoverContinent={(c) => setHoverRegion(c)}
                 onHoverCountry={(c) => setHoverCountry(c)}
                 onClickCountry={(c) => {
