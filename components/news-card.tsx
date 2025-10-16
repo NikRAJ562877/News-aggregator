@@ -1,6 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { MotionCard } from "@/components/motion-card"
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ExternalLink, Clock, Globe } from "lucide-react"
@@ -46,7 +47,7 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
   }
 
   return (
-    <Card className="h-full flex flex-col">
+    <MotionCard className="h-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-lg leading-tight line-clamp-2">{article.title}</CardTitle>
@@ -83,7 +84,7 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
       )}
 
       <CardContent className="flex-1 flex flex-col">
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">{article.description}</p>
+        <p className="text-sm text-muted-foreground mb-4 line-clamp-4">{article.description}</p>
 
         <div className="flex flex-wrap gap-2 mb-4">
           {article.category && <Badge variant="outline">{article.category}</Badge>}
@@ -107,6 +108,6 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
           )}
         </div>
       </CardContent>
-    </Card>
+    </MotionCard>
   )
 }

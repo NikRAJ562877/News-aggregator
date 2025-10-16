@@ -23,7 +23,7 @@ import { NewsCard } from "@/components/news-card"
 import { SignificanceChart } from "@/components/significance-chart"
 import { WorldMap } from "@/components/world-map"
 import { Search, Filter, Globe, TrendingUp, AlertTriangle } from "lucide-react"
-import type { NewsArticle } from "@/lib/types"
+import { TypingAnimator } from "@/components/typing-animator"
 
 export default function NewsAggregator() {
   const [articles, setArticles] = useState<NewsArticle[]>([])
@@ -424,12 +424,12 @@ export default function NewsAggregator() {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Strategic Intelligence Hub</h1>
+            <div className="flex flex-col">
+              <TypingAnimator text="Strategic Intelligence Hub" className="text-4xl font-bold" />
               <p className="text-muted-foreground mt-1">AI-Powered Geopolitical News Analysis</p>
             </div>
             <div className="flex items-center gap-4">
-              <Badge variant="outline" className="text-sm">
+              <Badge variant="default" className="text-sm">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 Avg: {avgSignificance}/10
               </Badge>
@@ -480,21 +480,7 @@ export default function NewsAggregator() {
                 </SelectContent>
               </Select>
 
-              <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Region" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Regions</SelectItem>
-                  {regions
-                    .filter((region) => region !== "all")
-                    .map((region) => (
-                      <SelectItem key={region} value={region}>
-                        {region}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+
 
               {/* Persona select removed from filters (moved to per-article modal) */}
 
@@ -503,7 +489,7 @@ export default function NewsAggregator() {
                 onClick={() => {
                   setSearchTerm("")
                   setSelectedCategory("all")
-                  setSelectedRegion("all")
+
                   setSelectedContinent(null)
                   setSelectedStrengthParam(null)
                   setSelectedCountry(null)
