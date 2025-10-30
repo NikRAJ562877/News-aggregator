@@ -126,7 +126,7 @@ export default function LandingPage() {
       </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b border-slate-800/50 backdrop-blur-sm bg-slate-950/30 overflow-hidden">
+      <header className="relative z-10  overflow-hidden">
         {/* Animated lines background */}
 
         <div className="container mx-auto px-4 py-6 relative z-10">
