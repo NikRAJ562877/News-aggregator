@@ -6,8 +6,8 @@ import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 
 export const metadata: Metadata = {
-  title: 'version0 App',
-  description: 'Created with v0',
+  title: 'Strategic Intelligence Hub',
+  description: 'AI-Powered Geopolitical News Analysis',
   generator: 'v0.app',
 }
 
