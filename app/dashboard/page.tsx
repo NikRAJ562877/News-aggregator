@@ -7,8 +7,8 @@ export default function DashboardRedirect() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect to /demo since that's where the actual news aggregator functionality is
-    router.replace("/demo")
+    // Redirect to /login — landing users should go via login first
+    router.replace("/login")
   }, [router])
 
   return (

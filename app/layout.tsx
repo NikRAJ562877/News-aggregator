@@ -4,11 +4,13 @@ import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
+import Header from '@/components/Header'
+import { AuthProvider as AppAuthProvider } from '@/components/AuthProvider'
 
 export const metadata: Metadata = {
   title: 'Strategic Intelligence Hub',
   description: 'AI-Powered Geopolitical News Analysis',
-  generator: 'v0.app',
+  generator: 'v1.app',
 }
 
 export default function RootLayout({
@@ -25,7 +27,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <AppAuthProvider>
+            <Header />
+            {children}
+          </AppAuthProvider>
         </ThemeProvider>
         <Analytics />
       </body>

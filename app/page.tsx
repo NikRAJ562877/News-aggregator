@@ -86,14 +86,14 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
       {/* Floating action button */}
-      <motion.div
+        <motion.div
         initial={{ opacity: 0, scale: 0 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 2 }}
         className="fixed bottom-8 right-8 z-50"
       >
         <Button
-          onClick={() => router.push("/demo")}
+          onClick={() => router.push("/login")}
           className="h-14 w-14 rounded-full bg-emerald-600 hover:bg-emerald-700 shadow-2xl shadow-emerald-500/50 hover:shadow-emerald-600/70 transition-all duration-300 group"
         >
           <ArrowRight className="h-6 w-6 group-hover:scale-110 group-hover:rotate-[-45deg] transition-transform" />
@@ -144,7 +144,7 @@ export default function LandingPage() {
               </div>
             </div>
             <Button
-              onClick={() => router.push("/demo")}
+              onClick={() => router.push("/login")}
               className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-300"
             >
               Launch Demo
@@ -195,7 +195,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
             <Button
               size="lg"
-              onClick={() => router.push("/demo")}
+              onClick={() => router.push("/login")}
               className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 px-8 py-6 text-lg group"
             >
               <Zap className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
@@ -351,7 +351,7 @@ export default function LandingPage() {
                   <p className="text-slate-400 text-sm">Experience the full power of Strategic Intelligence Hub</p>
                 </div>
                 <Button
-                  onClick={() => router.push("/demo")}
+                  onClick={() => router.push("/login")}
                   className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-300 group"
                 >
                   Launch Interactive Demo
@@ -471,7 +471,7 @@ export default function LandingPage() {
 
               <Button
                 size="lg"
-                onClick={() => router.push("/demo")}
+                onClick={() => router.push("/login")}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 px-8 py-6 text-lg group"
               >
                 Launch Strategic Intelligence Hub
