@@ -454,21 +454,19 @@ export default function NewsAggregator() {
                       <div className="flex gap-2 mb-4 border-b">
                         <button
                           onClick={() => setModalTab('summary')}
-                          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-                            modalTab === 'summary'
+                          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${modalTab === 'summary'
                               ? 'border-primary text-primary'
                               : 'border-transparent text-muted-foreground hover:text-foreground'
-                          }`}
+                            }`}
                         >
                           Summary
                         </button>
                         <button
                           onClick={() => setModalTab('related')}
-                          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
-                            modalTab === 'related'
+                          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${modalTab === 'related'
                               ? 'border-primary text-primary'
                               : 'border-transparent text-muted-foreground hover:text-foreground'
-                          }`}
+                            }`}
                         >
                           Related Articles
                         </button>
@@ -506,17 +504,17 @@ export default function NewsAggregator() {
                                 {/* Persona evaluation input */}
                                 <div className="pt-2 border-t">
                                   <label className="text-sm font-medium">Evaluate impact for a country (optional)</label>
-                                  <Input 
-                                    id="modal-persona-input" 
-                                    placeholder="Enter country (e.g. United States)" 
-                                    className="mt-2" 
+                                  <Input
+                                    id="modal-persona-input"
+                                    placeholder="Enter country (e.g. United States)"
+                                    className="mt-2"
                                     value={modalPersonaTarget}
-                                    onChange={(e) => setModalPersonaTarget(e.target.value)} 
+                                    onChange={(e) => setModalPersonaTarget(e.target.value)}
                                   />
                                   <div className="flex gap-2 mt-2">
-                                    <Button 
-                                      size="sm" 
-                                      onClick={evaluatePersona} 
+                                    <Button
+                                      size="sm"
+                                      onClick={evaluatePersona}
                                       disabled={modalPersonaLoading || !modalPersonaTarget || !modalArticle}
                                     >
                                       {modalPersonaLoading ? 'Evaluating...' : 'Evaluate for Country'}
@@ -526,109 +524,109 @@ export default function NewsAggregator() {
                                   {/* Persona Results */}
                                   {modalPersonaResult && (
                                     <div className="mt-3 text-sm max-h-64 overflow-auto bg-muted/10 p-3 rounded">
-                              {modalPersonaLoading && <div>Generating persona analysis…</div>}
+                                      {modalPersonaLoading && <div>Generating persona analysis…</div>}
 
-                              {!modalPersonaLoading && modalPersonaResult && !modalPersonaResult.error && (
-                                <div className="space-y-3">
-                                  {/* Impact */}
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-sm font-medium">Impact:</span>
-                                    <span
-                                      className={
-                                        `inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${modalPersonaResult.impact === 'positive'
-                                          ? 'bg-green-600 text-white'
-                                          : modalPersonaResult.impact === 'negative'
-                                            ? 'bg-red-600 text-white'
-                                            : 'bg-gray-300 text-gray-800'
-                                        }`
-                                      }
-                                    >
-                                      {String(modalPersonaResult.impact).toUpperCase()}
-                                    </span>
-                                  </div>
+                                      {!modalPersonaLoading && modalPersonaResult && !modalPersonaResult.error && (
+                                        <div className="space-y-3">
+                                          {/* Impact */}
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-sm font-medium">Impact:</span>
+                                            <span
+                                              className={
+                                                `inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${modalPersonaResult.impact === 'positive'
+                                                  ? 'bg-green-600 text-white'
+                                                  : modalPersonaResult.impact === 'negative'
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'bg-gray-300 text-gray-800'
+                                                }`
+                                              }
+                                            >
+                                              {String(modalPersonaResult.impact).toUpperCase()}
+                                            </span>
+                                          </div>
 
-                                  {/* Good For / Bad For */}
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <div className="text-sm font-medium mb-1">Good for</div>
-                                      <ul className="list-disc list-inside text-sm space-y-1">
-                                        {(modalPersonaResult.goodFor || []).length === 0 && <li className="text-muted-foreground">No clear beneficiaries</li>}
-                                        {(modalPersonaResult.goodFor || []).map((g: string, i: number) => (
-                                          <li key={`good-${i}`}>{g}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
+                                          {/* Good For / Bad For */}
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                              <div className="text-sm font-medium mb-1">Good for</div>
+                                              <ul className="list-disc list-inside text-sm space-y-1">
+                                                {(modalPersonaResult.goodFor || []).length === 0 && <li className="text-muted-foreground">No clear beneficiaries</li>}
+                                                {(modalPersonaResult.goodFor || []).map((g: string, i: number) => (
+                                                  <li key={`good-${i}`}>{g}</li>
+                                                ))}
+                                              </ul>
+                                            </div>
 
-                                    <div>
-                                      <div className="text-sm font-medium mb-1">Bad for</div>
-                                      <ul className="list-disc list-inside text-sm space-y-1">
-                                        {(modalPersonaResult.badFor || []).length === 0 && <li className="text-muted-foreground">No clear losers</li>}
-                                        {(modalPersonaResult.badFor || []).map((b: string, i: number) => (
-                                          <li key={`bad-${i}`}>{b}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  </div>
+                                            <div>
+                                              <div className="text-sm font-medium mb-1">Bad for</div>
+                                              <ul className="list-disc list-inside text-sm space-y-1">
+                                                {(modalPersonaResult.badFor || []).length === 0 && <li className="text-muted-foreground">No clear losers</li>}
+                                                {(modalPersonaResult.badFor || []).map((b: string, i: number) => (
+                                                  <li key={`bad-${i}`}>{b}</li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          </div>
 
-                                  {/* Competitors */}
-                                  <div>
-                                    <div className="text-sm font-medium mb-1">Competitors</div>
-                                    {(modalPersonaResult.competitors || []).length === 0 ? (
-                                      <div className="text-sm text-muted-foreground">No competitors identified</div>
-                                    ) : (
-                                      <div className="overflow-auto">
-                                        <table className="w-full text-sm">
-                                          <thead>
-                                            <tr className="text-left text-xs text-muted-foreground">
-                                              <th className="pb-1">Name</th>
-                                              <th className="pb-1">Effect</th>
-                                              <th className="pb-1">Reason</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {(modalPersonaResult.competitors || []).map((c: any, i: number) => (
-                                              <tr key={`comp-${i}`} className="align-top border-t">
-                                                <td className="py-2 pr-4 font-medium">{c.name}</td>
-                                                <td className="py-2 pr-4">{c.effect}</td>
-                                                <td className="py-2 text-muted-foreground">{c.reason}</td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    )}
-                                  </div>
+                                          {/* Competitors */}
+                                          <div>
+                                            <div className="text-sm font-medium mb-1">Competitors</div>
+                                            {(modalPersonaResult.competitors || []).length === 0 ? (
+                                              <div className="text-sm text-muted-foreground">No competitors identified</div>
+                                            ) : (
+                                              <div className="overflow-auto">
+                                                <table className="w-full text-sm">
+                                                  <thead>
+                                                    <tr className="text-left text-xs text-muted-foreground">
+                                                      <th className="pb-1">Name</th>
+                                                      <th className="pb-1">Effect</th>
+                                                      <th className="pb-1">Reason</th>
+                                                    </tr>
+                                                  </thead>
+                                                  <tbody>
+                                                    {(modalPersonaResult.competitors || []).map((c: any, i: number) => (
+                                                      <tr key={`comp-${i}`} className="align-top border-t">
+                                                        <td className="py-2 pr-4 font-medium">{c.name}</td>
+                                                        <td className="py-2 pr-4">{c.effect}</td>
+                                                        <td className="py-2 text-muted-foreground">{c.reason}</td>
+                                                      </tr>
+                                                    ))}
+                                                  </tbody>
+                                                </table>
+                                              </div>
+                                            )}
+                                          </div>
 
-                                  {/* Recommendation & Steps */}
-                                  <div>
-                                    <div className="text-sm font-medium mb-1">Recommendation</div>
-                                    <div className="text-sm">{modalPersonaResult.recommendation}</div>
-                                    <div className="text-sm font-medium mt-2 mb-1">Suggested steps</div>
-                                    <ol className="list-decimal list-inside text-sm space-y-1">
-                                      {(modalPersonaResult.steps || []).length === 0 && <li className="text-muted-foreground">No specific steps suggested</li>}
-                                      {(modalPersonaResult.steps || []).map((s: string, i: number) => (
-                                        <li key={`step-${i}`}>{s}</li>
-                                      ))}
-                                    </ol>
-                                  </div>
+                                          {/* Recommendation & Steps */}
+                                          <div>
+                                            <div className="text-sm font-medium mb-1">Recommendation</div>
+                                            <div className="text-sm">{modalPersonaResult.recommendation}</div>
+                                            <div className="text-sm font-medium mt-2 mb-1">Suggested steps</div>
+                                            <ol className="list-decimal list-inside text-sm space-y-1">
+                                              {(modalPersonaResult.steps || []).length === 0 && <li className="text-muted-foreground">No specific steps suggested</li>}
+                                              {(modalPersonaResult.steps || []).map((s: string, i: number) => (
+                                                <li key={`step-${i}`}>{s}</li>
+                                              ))}
+                                            </ol>
+                                          </div>
 
-                                  {/* Confidence */}
-                                  <div>
-                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                      <span>Confidence</span>
-                                      <span>{(modalPersonaResult.confidence ?? 0)}%</span>
-                                    </div>
-                                    <div className="w-full bg-muted rounded h-2 mt-1 overflow-hidden">
-                                      <div className="h-full bg-primary" style={{ width: `${Math.min(100, modalPersonaResult.confidence ?? 0)}%` }} />
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
+                                          {/* Confidence */}
+                                          <div>
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                              <span>Confidence</span>
+                                              <span>{(modalPersonaResult.confidence ?? 0)}%</span>
+                                            </div>
+                                            <div className="w-full bg-muted rounded h-2 mt-1 overflow-hidden">
+                                              <div className="h-full bg-primary" style={{ width: `${Math.min(100, modalPersonaResult.confidence ?? 0)}%` }} />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
 
-                              {/* Show raw fallback if model returned non-JSON or error */}
-                              {!modalPersonaLoading && modalPersonaResult.error && (
-                                <div className="text-xs text-destructive">{modalPersonaResult.error}</div>
-                              )}
+                                      {/* Show raw fallback if model returned non-JSON or error */}
+                                      {!modalPersonaLoading && modalPersonaResult.error && (
+                                        <div className="text-xs text-destructive">{modalPersonaResult.error}</div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -671,14 +669,14 @@ export default function NewsAggregator() {
 
                       {/* Footer */}
                       <div className="flex gap-2 justify-end mt-4 pt-4 border-t">
-                        <Button 
-                          variant="ghost" 
-                          onClick={() => { 
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
                             setModalArticle(null)
                             setModalResult(null)
                             setModalError(null)
                             setModalTab('summary')
-                          }} 
+                          }}
                           disabled={modalLoading}
                         >
                           Close
