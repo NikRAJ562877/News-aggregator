@@ -31,6 +31,7 @@ import { UserHeader } from "@/components/dashboard/user-header"
 import { UsageChart } from "@/components/dashboard/usage-chart"
 import { useRouter, useSearchParams } from "next/navigation"
 import { NewsArticle } from "@/lib/types"
+import { isCompleteAnalysis, fetchAnalysisWithRetry } from "@/lib/analyzeUtils"
 
 export default function NewsAggregator() {
   const router = useRouter()
@@ -60,10 +61,10 @@ export default function NewsAggregator() {
   const [modalPersonaTarget, setModalPersonaTarget] = useState<string>("")
   const [modalPersonaLoading, setModalPersonaLoading] = useState<boolean>(false)
   const [modalPersonaResult, setModalPersonaResult] = useState<any>(null)
-  // Single-button batch level check state
-  const [isCheckingLevels, setIsCheckingLevels] = useState<boolean>(false)
-  const [checkedCount, setCheckedCount] = useState<number>(0)
-  const [totalToCheck, setTotalToCheck] = useState<number>(0)
+  const [relatedArticles, setRelatedArticles] = useState<NewsArticle[]>([])
+  const [relatedArticlesLoading, setRelatedArticlesLoading] = useState<boolean>(false)
+  const [modalTab, setModalTab] = useState<'summary' | 'related'>('summary')
+  const analysisCacheRef = useMemo(() => new Map<string, any>(), [])
   const [hoverRegion, setHoverRegion] = useState<string | null>(null)
   const [hoverCountry, setHoverCountry] = useState<string | null>(null)
   const articlesByCountry = useMemo(() => {
@@ -132,64 +133,102 @@ export default function NewsAggregator() {
     setFilteredArticles(f)
   }, [articles, searchTerm, selectedCategory, selectedCountry, articlesByCountry])
 
-  // Basic stubs for analyze / persona / bulk-check to keep the page interactive
+  // Basic stubs for analyze / persona /bulk-check to keep the page interactive
   const handleAnalyze = async (article: NewsArticle) => {
     setModalArticle(article)
     setModalLoading(true)
     setModalError(null)
-    try {
-      await new Promise((r) => setTimeout(r, 700))
-      const result = {
-        significance: Math.floor(Math.random() * 8) + 3,
-        category: article.category || 'General',
-        region: article.region || 'Global',
-        analysis: 'Mock analysis generated for demo purposes.'
-      }
-      setModalResult(result)
-      setArticles((prev) => prev.map((a) => (a.url === article.url ? { ...a, significance: result.significance } : a)))
-    } catch (e) {
-      setModalError('Analysis failed')
-    } finally {
+    setRelatedArticles([])
+    setRelatedArticlesLoading(true)
+
+    // Check client-side cache first
+    const cacheKey = article.url || `${article.title}:${article.publishedAt}`
+    if (analysisCacheRef.has(cacheKey)) {
+      const cached = analysisCacheRef.get(cacheKey)
+      setModalResult(cached)
+      setArticles((prev) => prev.map((a) => (a.url === article.url ? { ...a, significance: cached.significance ?? a.significance, category: cached.category ?? a.category, region: cached.region ?? a.region, analysis: cached.analysis ?? a.analysis } : a)))
       setModalLoading(false)
+    } else {
+      // Call the analysis API with retry logic
+      try {
+        // Attempt to get key count and pick a keyIndex to spread load a bit for single-article analyzes
+        let keyIndex: number | undefined = undefined
+        try {
+          const keyInfoRes = await fetch('/api/key-info')
+          const keyInfo = await keyInfoRes.json()
+          const numKeys = keyInfo?.count > 0 ? keyInfo.count : 1
+          keyIndex = Math.floor(Math.random() * numKeys)
+        } catch (e) {
+          // ignore and let server rotate keys
+          keyIndex = undefined
+        }
+
+        const analysis = await fetchAnalysisWithRetry(article, 4, 800, keyIndex)
+        setModalResult(analysis)
+        analysisCacheRef.set(cacheKey, analysis)
+        // Update article with returned analysis (if present)
+        setArticles((prev) =>
+          prev.map((a) => (a.url === article.url ? { ...a, significance: analysis.significance ?? a.significance, category: analysis.category ?? a.category, region: analysis.region ?? a.region, analysis: analysis.analysis ?? a.analysis } : a)),
+        )
+      } catch (error) {
+        console.error('Analysis failed after retries:', error)
+        setModalError('Unable to analyze article')
+
+        // Fallback mock result so UI remains informative
+        const fallback = {
+          significance: Math.floor(Math.random() * 8) + 3,
+          category: article.category || 'General',
+          region: article.region || 'Global',
+          analysis: 'Mock analysis generated for demo purposes.',
+        }
+        setModalResult(fallback)
+        setArticles((prev) => prev.map((a) => (a.url === article.url ? { ...a, significance: fallback.significance } : a)))
+        analysisCacheRef.set(cacheKey, fallback)
+      } finally {
+        setModalLoading(false)
+      }
+    }
+
+    // Fetch related articles in parallel (non-blocking for the main analysis)
+    try {
+      const relatedResponse = await fetch("/api/related-articles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ article }),
+      })
+      const relatedData = await relatedResponse.json()
+      setRelatedArticles(relatedData.articles || [])
+    } catch (error) {
+      console.error("Failed to fetch related articles:", error)
+    } finally {
+      setRelatedArticlesLoading(false)
     }
   }
 
   const evaluatePersona = async () => {
-    if (!modalArticle) return
+    if (!modalArticle || !modalPersonaTarget) return
     setModalPersonaLoading(true)
     try {
-      await new Promise((r) => setTimeout(r, 700))
-      setModalPersonaResult({
-        impact: 'neutral',
-        goodFor: ['Local business'],
-        badFor: [],
-        competitors: [],
-        recommendation: 'Monitor developments.',
-        steps: ['Step 1: Watch', 'Step 2: Assess'],
-        confidence: 65
+      const res = await fetch('/api/persona-evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetCountry: modalPersonaTarget, article: modalArticle }),
       })
+      const data = await res.json()
+      if (data?.error) {
+        setModalPersonaResult({ error: data.error, raw: data.raw || null })
+      } else {
+        setModalPersonaResult(data)
+      }
     } catch (e) {
+      console.error('Persona evaluate failed:', e)
       setModalPersonaResult({ error: 'Persona evaluation failed' })
     } finally {
       setModalPersonaLoading(false)
     }
   }
 
-  const checkLevelsForDisplayed = async () => {
-    if (filteredArticles.length === 0) return
-    setIsCheckingLevels(true)
-    setTotalToCheck(filteredArticles.length)
-    setCheckedCount(0)
-    for (const a of filteredArticles) {
-      // simulate analysis
-      // eslint-disable-next-line no-await-in-loop
-      await new Promise((r) => setTimeout(r, 120))
-      const sig = Math.floor(Math.random() * 8) + 2
-      setArticles((prev) => prev.map((p) => (p.url === a.url ? { ...p, significance: sig } : p)))
-      setCheckedCount((c) => c + 1)
-    }
-    setIsCheckingLevels(false)
-  }
+
   // Continent → Parameter → Countries configuration (curated lists)
   const continentsConfig: Record<string, Record<string, string[]>> = {
     "Asia": {
@@ -319,7 +358,7 @@ export default function NewsAggregator() {
               <div className="mt-4 p-4 bg-card rounded">
                 <h3 className="font-semibold mb-2">Create Activity</h3>
                 <div className="flex gap-2">
-                  <select id="atype" className="flex-1 border rounded px-2 py-1" defaultValue="view" onChange={() => {}}>
+                  <select id="atype" className="flex-1 border rounded px-2 py-1" defaultValue="view" onChange={() => { }}>
                     <option value="view">view</option>
                     <option value="analyze">analyze</option>
                     <option value="favorite">favorite</option>
@@ -334,7 +373,7 @@ export default function NewsAggregator() {
                     const sel = (document.getElementById('atype') as HTMLSelectElement)?.value || 'view'
                     const title = (document.getElementById('atitle') as HTMLInputElement)?.value || 'User action'
                     auth.addActivity({ type: sel as any, articleTitle: title, details: undefined })
-                    ;(document.getElementById('atitle') as HTMLInputElement).value = ''
+                      ; (document.getElementById('atitle') as HTMLInputElement).value = ''
                   }}>
                     Add
                   </button>
@@ -400,157 +439,254 @@ export default function NewsAggregator() {
                   Clear Filters
                 </Button>
 
-                {/* Single-button bulk analyze for currently displayed articles */}
-                <Button
-                  variant="default"
-                  onClick={checkLevelsForDisplayed}
-                  disabled={isCheckingLevels || filteredArticles.length === 0}
-                >
-                  {isCheckingLevels ? `Checking ${checkedCount}/${totalToCheck}` : 'Check Levels'}
-                </Button>
                 {/* Per-article analysis modal (opened when clicking Analyze on a card) */}
                 {modalArticle && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => { if (!modalLoading) { setModalArticle(null); setModalResult(null); setModalError(null) } }} />
-                    <div className="bg-card rounded-md shadow-lg max-w-2xl w-full p-6 z-10">
-                      <h3 className="text-lg font-semibold">Article Analysis</h3>
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{modalArticle.title}</p>
+                    <div className="absolute inset-0 bg-black/40" onClick={() => { if (!modalLoading) { setModalArticle(null); setModalResult(null); setModalError(null); setModalTab('summary') } }} />
+                    <div className="bg-card rounded-md shadow-lg max-w-4xl w-full p-6 z-10 max-h-[85vh] flex flex-col">
+                      {/* Header */}
+                      <div className="mb-4 pb-4 border-b">
+                        <h3 className="text-lg font-semibold">Article Analysis</h3>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{modalArticle.title}</p>
+                      </div>
 
-                      <div className="mt-4">
-                        {modalLoading && <div className="text-sm">Analyzing article…</div>}
-                        {modalError && <div className="text-sm text-destructive">{modalError}</div>}
-                        {!modalLoading && modalResult && (
-                          <div className="space-y-2 text-sm">
-                            <div><strong>Significance:</strong> {modalResult.significance ?? 'N/A'}/10</div>
-                            <div><strong>Category:</strong> {modalResult.category ?? 'N/A'}</div>
-                            <div><strong>Region:</strong> {modalResult.region ?? 'N/A'}</div>
-                            <div><strong>Analysis:</strong> <div className="mt-1 text-muted-foreground">{modalResult.analysis ?? 'No details'}</div></div>
-                          </div>
-                        )}
+                      {/* Tab Buttons */}
+                      <div className="flex gap-2 mb-4 border-b">
+                        <button
+                          onClick={() => setModalTab('summary')}
+                          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
+                            modalTab === 'summary'
+                              ? 'border-primary text-primary'
+                              : 'border-transparent text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          Summary
+                        </button>
+                        <button
+                          onClick={() => setModalTab('related')}
+                          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
+                            modalTab === 'related'
+                              ? 'border-primary text-primary'
+                              : 'border-transparent text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          Related Articles
+                        </button>
+                      </div>
 
-                        {/* Persona evaluation input inside the modal */}
-                        <div className="mt-4">
-                          <label className="text-sm">Evaluate impact for a country (optional)</label>
-                          <Input id="modal-persona-input" placeholder="Enter country (e.g. United States)" className="mt-2" value={modalPersonaTarget}
-                            onChange={(e) => setModalPersonaTarget(e.target.value)} />
-                          <div className="flex gap-2 mt-2">
-                            <Button size="sm" onClick={evaluatePersona} disabled={modalPersonaLoading || !modalPersonaTarget || !modalArticle}>
-                              {modalPersonaLoading ? 'Evaluating...' : 'Evaluate for Country'}
-                            </Button>
-                          </div>
-                          <div className="mt-3 text-sm max-h-80 overflow-auto bg-muted/10 p-3 rounded">
-                            {modalPersonaLoading && <div>Generating persona analysis…</div>}
-
-                            {!modalPersonaLoading && modalPersonaResult && !modalPersonaResult.error && (
-                              <div className="space-y-3">
-                                {/* Impact */}
-                                <div className="flex items-center gap-3">
-                                  <span className="text-sm font-medium">Impact:</span>
-                                  <span
-                                    className={
-                                      `inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${modalPersonaResult.impact === 'positive'
-                                        ? 'bg-green-600 text-white'
-                                        : modalPersonaResult.impact === 'negative'
-                                          ? 'bg-red-600 text-white'
-                                          : 'bg-gray-300 text-gray-800'
-                                      }`
-                                    }
-                                  >
-                                    {String(modalPersonaResult.impact).toUpperCase()}
-                                  </span>
-                                </div>
-
-                                {/* Good For / Bad For */}
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <div className="text-sm font-medium mb-1">Good for</div>
-                                    <ul className="list-disc list-inside text-sm space-y-1">
-                                      {(modalPersonaResult.goodFor || []).length === 0 && <li className="text-muted-foreground">No clear beneficiaries</li>}
-                                      {(modalPersonaResult.goodFor || []).map((g: string, i: number) => (
-                                        <li key={`good-${i}`}>{g}</li>
-                                      ))}
-                                    </ul>
+                      {/* Tab Content */}
+                      <div className="flex-1 overflow-auto">
+                        {/* Summary Tab */}
+                        {modalTab === 'summary' && (
+                          <div className="space-y-4">
+                            {modalLoading && <div className="text-sm">Analyzing article…</div>}
+                            {modalError && <div className="text-sm text-destructive">{modalError}</div>}
+                            {!modalLoading && modalResult && (
+                              <div className="space-y-3 text-sm">
+                                <div className="grid grid-cols-3 gap-4">
+                                  <div className="bg-muted/40 p-3 rounded">
+                                    <div className="text-xs text-muted-foreground mb-1">Significance</div>
+                                    <div className="text-2xl font-bold">{modalResult.significance ?? 'N/A'}<span className="text-sm">/10</span></div>
                                   </div>
-
-                                  <div>
-                                    <div className="text-sm font-medium mb-1">Bad for</div>
-                                    <ul className="list-disc list-inside text-sm space-y-1">
-                                      {(modalPersonaResult.badFor || []).length === 0 && <li className="text-muted-foreground">No clear losers</li>}
-                                      {(modalPersonaResult.badFor || []).map((b: string, i: number) => (
-                                        <li key={`bad-${i}`}>{b}</li>
-                                      ))}
-                                    </ul>
+                                  <div className="bg-muted/40 p-3 rounded">
+                                    <div className="text-xs text-muted-foreground mb-1">Category</div>
+                                    <div className="font-semibold text-base">{modalResult.category ?? 'N/A'}</div>
+                                  </div>
+                                  <div className="bg-muted/40 p-3 rounded">
+                                    <div className="text-xs text-muted-foreground mb-1">Region</div>
+                                    <div className="font-semibold text-base">{modalResult.region ?? 'N/A'}</div>
                                   </div>
                                 </div>
 
-                                {/* Competitors */}
                                 <div>
-                                  <div className="text-sm font-medium mb-1">Competitors</div>
-                                  {(modalPersonaResult.competitors || []).length === 0 ? (
-                                    <div className="text-sm text-muted-foreground">No competitors identified</div>
-                                  ) : (
-                                    <div className="overflow-auto">
-                                      <table className="w-full text-sm">
-                                        <thead>
-                                          <tr className="text-left text-xs text-muted-foreground">
-                                            <th className="pb-1">Name</th>
-                                            <th className="pb-1">Effect</th>
-                                            <th className="pb-1">Reason</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {(modalPersonaResult.competitors || []).map((c: any, i: number) => (
-                                            <tr key={`comp-${i}`} className="align-top border-t">
-                                              <td className="py-2 pr-4 font-medium">{c.name}</td>
-                                              <td className="py-2 pr-4">{c.effect}</td>
-                                              <td className="py-2 text-muted-foreground">{c.reason}</td>
+                                  <div className="font-semibold mb-2">Analysis</div>
+                                  <div className="text-muted-foreground bg-muted/20 p-3 rounded">{modalResult.analysis ?? 'No details'}</div>
+                                </div>
+
+                                {/* Persona evaluation input */}
+                                <div className="pt-2 border-t">
+                                  <label className="text-sm font-medium">Evaluate impact for a country (optional)</label>
+                                  <Input 
+                                    id="modal-persona-input" 
+                                    placeholder="Enter country (e.g. United States)" 
+                                    className="mt-2" 
+                                    value={modalPersonaTarget}
+                                    onChange={(e) => setModalPersonaTarget(e.target.value)} 
+                                  />
+                                  <div className="flex gap-2 mt-2">
+                                    <Button 
+                                      size="sm" 
+                                      onClick={evaluatePersona} 
+                                      disabled={modalPersonaLoading || !modalPersonaTarget || !modalArticle}
+                                    >
+                                      {modalPersonaLoading ? 'Evaluating...' : 'Evaluate for Country'}
+                                    </Button>
+                                  </div>
+
+                                  {/* Persona Results */}
+                                  {modalPersonaResult && (
+                                    <div className="mt-3 text-sm max-h-64 overflow-auto bg-muted/10 p-3 rounded">
+                              {modalPersonaLoading && <div>Generating persona analysis…</div>}
+
+                              {!modalPersonaLoading && modalPersonaResult && !modalPersonaResult.error && (
+                                <div className="space-y-3">
+                                  {/* Impact */}
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-sm font-medium">Impact:</span>
+                                    <span
+                                      className={
+                                        `inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${modalPersonaResult.impact === 'positive'
+                                          ? 'bg-green-600 text-white'
+                                          : modalPersonaResult.impact === 'negative'
+                                            ? 'bg-red-600 text-white'
+                                            : 'bg-gray-300 text-gray-800'
+                                        }`
+                                      }
+                                    >
+                                      {String(modalPersonaResult.impact).toUpperCase()}
+                                    </span>
+                                  </div>
+
+                                  {/* Good For / Bad For */}
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <div className="text-sm font-medium mb-1">Good for</div>
+                                      <ul className="list-disc list-inside text-sm space-y-1">
+                                        {(modalPersonaResult.goodFor || []).length === 0 && <li className="text-muted-foreground">No clear beneficiaries</li>}
+                                        {(modalPersonaResult.goodFor || []).map((g: string, i: number) => (
+                                          <li key={`good-${i}`}>{g}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+
+                                    <div>
+                                      <div className="text-sm font-medium mb-1">Bad for</div>
+                                      <ul className="list-disc list-inside text-sm space-y-1">
+                                        {(modalPersonaResult.badFor || []).length === 0 && <li className="text-muted-foreground">No clear losers</li>}
+                                        {(modalPersonaResult.badFor || []).map((b: string, i: number) => (
+                                          <li key={`bad-${i}`}>{b}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </div>
+
+                                  {/* Competitors */}
+                                  <div>
+                                    <div className="text-sm font-medium mb-1">Competitors</div>
+                                    {(modalPersonaResult.competitors || []).length === 0 ? (
+                                      <div className="text-sm text-muted-foreground">No competitors identified</div>
+                                    ) : (
+                                      <div className="overflow-auto">
+                                        <table className="w-full text-sm">
+                                          <thead>
+                                            <tr className="text-left text-xs text-muted-foreground">
+                                              <th className="pb-1">Name</th>
+                                              <th className="pb-1">Effect</th>
+                                              <th className="pb-1">Reason</th>
                                             </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
+                                          </thead>
+                                          <tbody>
+                                            {(modalPersonaResult.competitors || []).map((c: any, i: number) => (
+                                              <tr key={`comp-${i}`} className="align-top border-t">
+                                                <td className="py-2 pr-4 font-medium">{c.name}</td>
+                                                <td className="py-2 pr-4">{c.effect}</td>
+                                                <td className="py-2 text-muted-foreground">{c.reason}</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Recommendation & Steps */}
+                                  <div>
+                                    <div className="text-sm font-medium mb-1">Recommendation</div>
+                                    <div className="text-sm">{modalPersonaResult.recommendation}</div>
+                                    <div className="text-sm font-medium mt-2 mb-1">Suggested steps</div>
+                                    <ol className="list-decimal list-inside text-sm space-y-1">
+                                      {(modalPersonaResult.steps || []).length === 0 && <li className="text-muted-foreground">No specific steps suggested</li>}
+                                      {(modalPersonaResult.steps || []).map((s: string, i: number) => (
+                                        <li key={`step-${i}`}>{s}</li>
+                                      ))}
+                                    </ol>
+                                  </div>
+
+                                  {/* Confidence */}
+                                  <div>
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                      <span>Confidence</span>
+                                      <span>{(modalPersonaResult.confidence ?? 0)}%</span>
+                                    </div>
+                                    <div className="w-full bg-muted rounded h-2 mt-1 overflow-hidden">
+                                      <div className="h-full bg-primary" style={{ width: `${Math.min(100, modalPersonaResult.confidence ?? 0)}%` }} />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Show raw fallback if model returned non-JSON or error */}
+                              {!modalPersonaLoading && modalPersonaResult.error && (
+                                <div className="text-xs text-destructive">{modalPersonaResult.error}</div>
+                              )}
                                     </div>
                                   )}
                                 </div>
-
-                                {/* Recommendation & Steps */}
-                                <div>
-                                  <div className="text-sm font-medium mb-1">Recommendation</div>
-                                  <div className="text-sm">{modalPersonaResult.recommendation}</div>
-                                  <div className="text-sm font-medium mt-2 mb-1">Suggested steps</div>
-                                  <ol className="list-decimal list-inside text-sm space-y-1">
-                                    {(modalPersonaResult.steps || []).length === 0 && <li className="text-muted-foreground">No specific steps suggested</li>}
-                                    {(modalPersonaResult.steps || []).map((s: string, i: number) => (
-                                      <li key={`step-${i}`}>{s}</li>
-                                    ))}
-                                  </ol>
-                                </div>
-
-                                {/* Confidence */}
-                                <div>
-                                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                    <span>Confidence</span>
-                                    <span>{(modalPersonaResult.confidence ?? 0)}%</span>
-                                  </div>
-                                  <div className="w-full bg-muted rounded h-2 mt-1 overflow-hidden">
-                                    <div className="h-full bg-primary" style={{ width: `${Math.min(100, modalPersonaResult.confidence ?? 0)}%` }} />
-                                  </div>
-                                </div>
                               </div>
                             )}
-
-                            {/* Show raw fallback if model returned non-JSON or error */}
-                            {!modalPersonaLoading && modalPersonaResult && modalPersonaResult.error && (
-                              <div className="text-sm text-destructive">{modalPersonaResult.error}</div>
-                            )}
                           </div>
-                        </div>
+                        )}
 
-                        <div className="flex gap-2 justify-end mt-4">
-                          <Button variant="ghost" onClick={() => { setModalArticle(null); setModalResult(null); setModalError(null) }} disabled={modalLoading}>Close</Button>
-                        </div>
+                        {/* Related Articles Tab */}
+                        {modalTab === 'related' && (
+                          <div>
+                            <h4 className="text-sm font-semibold mb-3">Related Articles (Past 10 Days)</h4>
+                            {relatedArticlesLoading && <div className="text-xs text-muted-foreground">Loading...</div>}
+                            {!relatedArticlesLoading && relatedArticles.length === 0 && (
+                              <div className="text-xs text-muted-foreground">No related articles found</div>
+                            )}
+                            <div className="space-y-2">
+                              {relatedArticles.map((article, idx) => (
+                                <div
+                                  key={idx}
+                                  className="p-3 bg-muted/30 rounded text-xs cursor-pointer hover:bg-muted/60 transition border border-muted/40"
+                                  onClick={() => window.open(article.url, "_blank")}
+                                >
+                                  <p className="font-medium line-clamp-2 mb-2">{article.title}</p>
+                                  <div className="flex justify-between items-center text-muted-foreground">
+                                    <p className="text-xs line-clamp-1">{article.source.name}</p>
+                                    <p className="text-xs">
+                                      {new Date(article.publishedAt).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="flex gap-2 justify-end mt-4 pt-4 border-t">
+                        <Button 
+                          variant="ghost" 
+                          onClick={() => { 
+                            setModalArticle(null)
+                            setModalResult(null)
+                            setModalError(null)
+                            setModalTab('summary')
+                          }} 
+                          disabled={modalLoading}
+                        >
+                          Close
+                        </Button>
                       </div>
                     </div>
                   </div>
+                  // </div>
                 )}
               </div>
             </CardContent>
@@ -608,4 +744,5 @@ export default function NewsAggregator() {
     </div>
   )
 }
+
 

@@ -100,8 +100,8 @@ export async function GET(request: NextRequest) {
     // Add placeholder reliability data for demonstration
     const reliabilityLevels: NewsArticle['sourceReliability'][] = ['High', 'Medium', 'Low', 'Opinion', 'Satire']
 
-    // Map to our NewsArticle type
-    const articles: NewsArticle[] = uniqueArticles.map((article: any) => ({
+    // Map to our NewsArticle type with region detection
+    const articlesWithRegion = uniqueArticles.map((article: any) => ({
       title: article.title,
       description: article.description,
       url: article.url,
@@ -111,11 +111,36 @@ export async function GET(request: NextRequest) {
         name: article.source.name,
       },
       content: article.content,
-      category: article.category, // The category we tagged earlier
+      category: article.category,
       significance: undefined,
-      region: detectRegion(article), // Provide an initial continent/region tag
+      region: detectRegion(article),
       sourceReliability: reliabilityLevels[Math.floor(Math.random() * reliabilityLevels.length)],
     }))
+
+    // Balance articles across regions - aim for ~10 total with 1-2 per region
+    const regionGroups = new Map<string, typeof articlesWithRegion>()
+    articlesWithRegion.forEach((article) => {
+      if (!regionGroups.has(article.region)) {
+        regionGroups.set(article.region, [])
+      }
+      regionGroups.get(article.region)!.push(article)
+    })
+
+    // Select up to 2 articles per region, aiming for ~10 total
+    const balancedArticles: typeof articlesWithRegion = []
+    const articlesPerRegion = 2
+    regionGroups.forEach((regionArticles) => {
+      // Sort by publishedAt (newest first) and take top 2
+      const sorted = regionArticles.sort(
+        (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime(),
+      )
+      balancedArticles.push(...sorted.slice(0, articlesPerRegion))
+    })
+
+    // Sort final list by published date and limit to 10
+    const articles: NewsArticle[] = balancedArticles
+      .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
+      .slice(0, 10)
 
     return NextResponse.json({ articles })
   } catch (error) {

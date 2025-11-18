@@ -1,7 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
+// Support multiple Gemini API keys for load distribution (round-robin)
+const geminiApiKeys: string[] = Object.keys(process.env)
+  .filter((k) => k.startsWith("GEMINI_API_KEY"))
+  .map((k) => process.env[k] as string)
+  .filter(Boolean)
+
+let currentKeyIndex = 0
+function getNextGenAI(): GoogleGenerativeAI {
+  if (geminiApiKeys.length === 0) {
+    throw new Error("No Gemini API keys configured")
+  }
+  const key = geminiApiKeys[currentKeyIndex % geminiApiKeys.length]
+  currentKeyIndex++
+  return new GoogleGenerativeAI(key)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +26,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'targetCountry and article are required' }, { status: 400 })
     }
 
+    const genAI = getNextGenAI()
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' })
 
     const prompt = `You are an expert geopolitical analyst. Given a news article and a target country, produce a concise, structured JSON assessment partitioned into who benefits and who is harmed, plus actionable steps the target country should consider.

@@ -1,0 +1,16 @@
+import { NextResponse } from "next/server"
+
+// Report how many Gemini keys are configured so clients can adapt concurrency/distribution
+export async function GET() {
+  try {
+    const geminiApiKeys = Object.keys(process.env)
+      .filter((k) => k.startsWith("GEMINI_API_KEY"))
+      .map((k) => process.env[k])
+      .filter(Boolean)
+
+    return NextResponse.json({ count: geminiApiKeys.length })
+  } catch (error) {
+    console.error('key-info error:', error)
+    return NextResponse.json({ count: 0 })
+  }
+}
