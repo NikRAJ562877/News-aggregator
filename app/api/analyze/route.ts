@@ -44,11 +44,19 @@ export async function POST(request: NextRequest) {
       - "significance": integer 1-10 (1 = low, 10 = critical)
       - "category": one of ("Military","Diplomacy","Trade","Energy","Environment","Security","Other")
       - "region": one of ("Europe","Asia Pacific","Middle East","Africa","Americas","Arctic","Global")
-      - "analysis": 1-3 sentence factual summary tied to the article content. Keep it concise and evidence-based.
-      Use facts from the title, description, and content. Do not hallucinate or invent sources.
-      Article Title: ${article.title}\n
-      Article Description: ${article.description || ''}\n
-      Article Content: ${article.content || ''}\n
+      - "analysis": 1-3 sentence factual summary tied to the article content.
+      - "timeline": Array of objects { "date": "string", "event": "string" } (Extract 3-4 key dates/events leading up to this).
+      - "scenarios": Array of objects { "outcome": "Best Case" | "Worst Case" | "Most Likely", "probability": "High" | "Medium" | "Low", "description": "string" } (Predict 3 distinct future scenarios).
+      - "graph_data": {
+          "nodes": [{ "id": "EntityName", "type": "Country" | "Person" | "Organization" | "Event" }],
+          "links": [{ "source": "EntityName", "target": "EntityName", "label": "relationship" }]
+        }
+        (Extract 3-5 key entities and their relationships for a knowledge graph. Ensure source/target match node ids exactly.)
+
+      Use facts from the title, description, and content. Do not hallucinate.
+      Article Title: ${article.title}
+      Article Description: ${article.description || ''}
+      Article Content: ${article.content || ''}
       Return ONLY the JSON object.
     `
 
@@ -119,6 +127,9 @@ export async function POST(request: NextRequest) {
       category: (analysis.category && String(analysis.category).trim()) || "Other",
       region: (analysis.region && String(analysis.region).trim()) || "Global",
       analysis: (analysis.analysis && String(analysis.analysis).trim()) || "Article analyzed successfully.",
+      timeline: Array.isArray(analysis.timeline) ? analysis.timeline : [],
+      scenarios: Array.isArray(analysis.scenarios) ? analysis.scenarios : [],
+      graph_data: analysis.graph_data || { nodes: [], links: [] },
     }
 
     // Ensure significance is a sensible integer

@@ -25,10 +25,7 @@ import { WorldMap } from "@/components/world-map"
 import { Search, Filter, Globe, TrendingUp, AlertTriangle, Home, ArrowLeft } from "lucide-react"
 import { TypingAnimator } from "@/components/typing-animator"
 import { useAuth } from "@/components/AuthProvider"
-import { StatsGrid } from "@/components/dashboard/stats-grid"
-import { ActivityTimeline } from "@/components/dashboard/activity-timeline"
-import { UserHeader } from "@/components/dashboard/user-header"
-import { UsageChart } from "@/components/dashboard/usage-chart"
+import { DashboardView } from "@/components/dashboard/dashboard-view"
 import { useRouter, useSearchParams } from "next/navigation"
 import { NewsArticle } from "@/lib/types"
 import { isCompleteAnalysis, fetchAnalysisWithRetry } from "@/lib/analyzeUtils"
@@ -346,42 +343,7 @@ export default function NewsAggregator() {
 
       {/* Dashboard for logged-in users (real-time data from AuthProvider) */}
       {auth.user && isDashboardView && (
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-4">
-              <UserHeader user={auth.user} />
-              <StatsGrid stats={auth.user.stats} />
-              <UsageChart />
-            </div>
-            <div>
-              <ActivityTimeline activities={auth.activities} />
-              <div className="mt-4 p-4 bg-card rounded">
-                <h3 className="font-semibold mb-2">Create Activity</h3>
-                <div className="flex gap-2">
-                  <select id="atype" className="flex-1 border rounded px-2 py-1" defaultValue="view" onChange={() => { }}>
-                    <option value="view">view</option>
-                    <option value="analyze">analyze</option>
-                    <option value="favorite">favorite</option>
-                    <option value="search">search</option>
-                  </select>
-                </div>
-                <div className="mt-2">
-                  <input id="atitle" className="w-full border rounded px-2 py-1" placeholder="Article title or note" />
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <button className="btn btn-primary px-3 py-1 rounded bg-emerald-600 text-white" onClick={() => {
-                    const sel = (document.getElementById('atype') as HTMLSelectElement)?.value || 'view'
-                    const title = (document.getElementById('atitle') as HTMLInputElement)?.value || 'User action'
-                    auth.addActivity({ type: sel as any, articleTitle: title, details: undefined })
-                      ; (document.getElementById('atitle') as HTMLInputElement).value = ''
-                  }}>
-                    Add
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <DashboardView />
       )}
 
       {/* Main news UI (only when not viewing dashboard) */}
@@ -455,8 +417,8 @@ export default function NewsAggregator() {
                         <button
                           onClick={() => setModalTab('summary')}
                           className={`px-4 py-2 text-sm font-medium border-b-2 transition ${modalTab === 'summary'
-                              ? 'border-primary text-primary'
-                              : 'border-transparent text-muted-foreground hover:text-foreground'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
                             }`}
                         >
                           Summary
@@ -464,8 +426,8 @@ export default function NewsAggregator() {
                         <button
                           onClick={() => setModalTab('related')}
                           className={`px-4 py-2 text-sm font-medium border-b-2 transition ${modalTab === 'related'
-                              ? 'border-primary text-primary'
-                              : 'border-transparent text-muted-foreground hover:text-foreground'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
                             }`}
                         >
                           Related Articles
