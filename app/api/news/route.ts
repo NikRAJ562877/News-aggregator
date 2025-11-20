@@ -9,7 +9,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
 
 async function generateSearchQuery(topic: string): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" }) // Using a faster model for query generation
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" }) // Using a faster model for query generation
     const prompt = `Create a sophisticated, boolean-logic search query for NewsAPI to find articles about the geopolitical topic "${topic}". The query should be highly relevant and actively exclude common false positives. For example, for "defense", exclude sports. For "finance", focus on international economics, not personal finance. The query should be a single line of text. Example for 'military': ("military exercise" OR "troop deployment" OR "arms deal" OR "defense budget") AND NOT (sports OR game).`
 
     const result = await model.generateContent(prompt)

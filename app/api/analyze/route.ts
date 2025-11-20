@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     } else {
       genAI = getNextGenAI()
     }
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-001" })
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" })
 
     const prompt = `
       You are a concise, factual geopolitical analyst. Analyze the article below.

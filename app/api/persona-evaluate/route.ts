@@ -54,7 +54,7 @@ Guidelines:
 - Keep strings concise (<= 300 chars). Use factual reasoning tied to the article (title/description/significance/category).
 - If the article has no meaningful external impact, set impact to "neutral" and provide monitoring steps and at least one proactive step.
 - Return strictly valid JSON and avoid commentary outside the JSON.
-` 
+`
 
     const result = await model.generateContent(prompt)
     const response = await result.response
