@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import type { NewsArticle } from "@/lib/types"
 
+export const dynamic = 'force-dynamic';
+
 // Support multiple Gemini API keys for load distribution
 // Discover any env var that starts with `GEMINI_API_KEY` (GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_FOO, ...)
 const geminiApiKeys: string[] = Object.keys(process.env)
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
     } else {
       genAI = getNextGenAI()
     }
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" })
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-001" })
 
     const prompt = `
       You are a concise, factual geopolitical analyst. Analyze the article below.

@@ -1,5 +1,6 @@
 "use client"
 
+import React, { useState } from "react"
 import { MotionCard } from "@/components/motion-card"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -7,18 +8,24 @@ import { Button } from "@/components/ui/button"
 import { ExternalLink, Clock, Globe } from "lucide-react"
 import type { NewsArticle } from "@/lib/types"
 
+
 interface NewsCardProps {
   article: NewsArticle
   onAnalyze?: (article: NewsArticle) => void
+  onAuthenticate?: (article: NewsArticle) => void
 }
 
-export function NewsCard({ article, onAnalyze }: NewsCardProps) {
+export function NewsCard({ article, onAnalyze, onAuthenticate: onAuthenticateProp }: NewsCardProps) {
+  const [authenticating, setAuthenticating] = useState(false)
+  const [verdict, setVerdict] = useState<string | null>(null)
+
   const getSignificanceColor = (significance?: number) => {
     if (!significance) return "bg-muted"
     if (significance >= 8) return "bg-destructive"
     if (significance >= 6) return "bg-accent"
     return "bg-secondary"
   }
+
 
   const getReliabilityColor = (reliability?: string) => {
     switch (reliability) {
@@ -37,6 +44,7 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
     }
   }
 
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
@@ -45,6 +53,34 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
       minute: "2-digit",
     })
   }
+
+
+  async function onAuthenticate(article: NewsArticle): Promise<void> {
+    // If parent provides handler, use it (opens modal)
+    if (onAuthenticateProp) {
+      onAuthenticateProp(article)
+      return
+    }
+
+    // Otherwise, use local state (inline display)
+    setAuthenticating(true)
+    setVerdict(null)
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/check_fake_news", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          article_text: article.title + ". " + article.description,
+        }),
+      })
+      const data = await response.json()
+      setVerdict(data.verdict)
+    } catch (err) {
+      setVerdict("Error checking authenticity.")
+    }
+    setAuthenticating(false)
+  }
+
 
   return (
     <MotionCard className="h-full flex flex-col">
@@ -73,6 +109,7 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
         </div>
       </CardHeader>
 
+
       {article.urlToImage && (
         <div className="px-6 pb-3">
           <img
@@ -83,13 +120,16 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
         </div>
       )}
 
+
       <CardContent className="flex-1 flex flex-col">
         <p className="text-sm text-muted-foreground mb-4 line-clamp-4">{article.description}</p>
+
 
         <div className="flex flex-wrap gap-2 mb-4">
           {article.category && <Badge variant="outline">{article.category}</Badge>}
           {article.region && <Badge variant="outline">{article.region}</Badge>}
         </div>
+
 
         <div className="flex gap-2 mt-auto">
           <Button
@@ -106,7 +146,21 @@ export function NewsCard({ article, onAnalyze }: NewsCardProps) {
               Analyze
             </Button>
           )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onAuthenticate(article)}
+            disabled={authenticating}
+          >
+            {authenticating ? "Checking..." : "Authenticate"}
+          </Button>
         </div>
+
+        {verdict && (
+          <div className="mt-2 text-sm font-semibold">
+            Fake News Verdict: <span>{verdict}</span>
+          </div>
+        )}
       </CardContent>
     </MotionCard>
   )

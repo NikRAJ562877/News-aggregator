@@ -28,7 +28,7 @@ export function UsageChart() {
             <Tooltip />
             <Line type="monotone" dataKey="views" stroke="var(--color-primary)" name="Articles Viewed" />
             <Line type="monotone" dataKey="analyses" stroke="var(--color-secondary)" name="Analyzed" />
-          </LineChart>
+           </LineChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

@@ -29,8 +29,9 @@ import { DashboardView } from "@/components/dashboard/dashboard-view"
 import { useRouter, useSearchParams } from "next/navigation"
 import { NewsArticle } from "@/lib/types"
 import { isCompleteAnalysis, fetchAnalysisWithRetry } from "@/lib/analyzeUtils"
+import { Suspense } from "react"
 
-export default function NewsAggregator() {
+function NewsAggregatorContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const view = searchParams?.get("view")
@@ -60,7 +61,10 @@ export default function NewsAggregator() {
   const [modalPersonaResult, setModalPersonaResult] = useState<any>(null)
   const [relatedArticles, setRelatedArticles] = useState<NewsArticle[]>([])
   const [relatedArticlesLoading, setRelatedArticlesLoading] = useState<boolean>(false)
-  const [modalTab, setModalTab] = useState<'summary' | 'related'>('summary')
+  const [modalTab, setModalTab] = useState<'summary' | 'related' | 'authenticate'>('summary')
+  const [authResult, setAuthResult] = useState<any>(null)
+  const [authLoading, setAuthLoading] = useState<boolean>(false)
+  const [authError, setAuthError] = useState<string | null>(null)
   const analysisCacheRef = useMemo(() => new Map<string, any>(), [])
   const [hoverRegion, setHoverRegion] = useState<string | null>(null)
   const [hoverCountry, setHoverCountry] = useState<string | null>(null)
@@ -130,14 +134,8 @@ export default function NewsAggregator() {
     setFilteredArticles(f)
   }, [articles, searchTerm, selectedCategory, selectedCountry, articlesByCountry])
 
-  // Basic stubs for analyze / persona /bulk-check to keep the page interactive
-  const handleAnalyze = async (article: NewsArticle) => {
-    setModalArticle(article)
-    setModalLoading(true)
-    setModalError(null)
-    setRelatedArticles([])
-    setRelatedArticlesLoading(true)
-
+  // Helper functions for data fetching
+  const performAnalysis = async (article: NewsArticle) => {
     // Check client-side cache first
     const cacheKey = article.url || `${article.title}:${article.publishedAt}`
     if (analysisCacheRef.has(cacheKey)) {
@@ -145,48 +143,53 @@ export default function NewsAggregator() {
       setModalResult(cached)
       setArticles((prev) => prev.map((a) => (a.url === article.url ? { ...a, significance: cached.significance ?? a.significance, category: cached.category ?? a.category, region: cached.region ?? a.region, analysis: cached.analysis ?? a.analysis } : a)))
       setModalLoading(false)
-    } else {
-      // Call the analysis API with retry logic
-      try {
-        // Attempt to get key count and pick a keyIndex to spread load a bit for single-article analyzes
-        let keyIndex: number | undefined = undefined
-        try {
-          const keyInfoRes = await fetch('/api/key-info')
-          const keyInfo = await keyInfoRes.json()
-          const numKeys = keyInfo?.count > 0 ? keyInfo.count : 1
-          keyIndex = Math.floor(Math.random() * numKeys)
-        } catch (e) {
-          // ignore and let server rotate keys
-          keyIndex = undefined
-        }
-
-        const analysis = await fetchAnalysisWithRetry(article, 4, 800, keyIndex)
-        setModalResult(analysis)
-        analysisCacheRef.set(cacheKey, analysis)
-        // Update article with returned analysis (if present)
-        setArticles((prev) =>
-          prev.map((a) => (a.url === article.url ? { ...a, significance: analysis.significance ?? a.significance, category: analysis.category ?? a.category, region: analysis.region ?? a.region, analysis: analysis.analysis ?? a.analysis } : a)),
-        )
-      } catch (error) {
-        console.error('Analysis failed after retries:', error)
-        setModalError('Unable to analyze article')
-
-        // Fallback mock result so UI remains informative
-        const fallback = {
-          significance: Math.floor(Math.random() * 8) + 3,
-          category: article.category || 'General',
-          region: article.region || 'Global',
-          analysis: 'Mock analysis generated for demo purposes.',
-        }
-        setModalResult(fallback)
-        setArticles((prev) => prev.map((a) => (a.url === article.url ? { ...a, significance: fallback.significance } : a)))
-        analysisCacheRef.set(cacheKey, fallback)
-      } finally {
-        setModalLoading(false)
-      }
+      return
     }
 
-    // Fetch related articles in parallel (non-blocking for the main analysis)
+    setModalLoading(true)
+    setModalError(null)
+
+    try {
+      // Attempt to get key count and pick a keyIndex to spread load a bit for single-article analyzes
+      let keyIndex: number | undefined = undefined
+      try {
+        const keyInfoRes = await fetch('/api/key-info')
+        const keyInfo = await keyInfoRes.json()
+        const numKeys = keyInfo?.count > 0 ? keyInfo.count : 1
+        keyIndex = Math.floor(Math.random() * numKeys)
+      } catch (e) {
+        // ignore and let server rotate keys
+        keyIndex = undefined
+      }
+
+      const analysis = await fetchAnalysisWithRetry(article, 4, 800, keyIndex)
+      setModalResult(analysis)
+      analysisCacheRef.set(cacheKey, analysis)
+      // Update article with returned analysis (if present)
+      setArticles((prev) =>
+        prev.map((a) => (a.url === article.url ? { ...a, significance: analysis.significance ?? a.significance, category: analysis.category ?? a.category, region: analysis.region ?? a.region, analysis: analysis.analysis ?? a.analysis } : a)),
+      )
+    } catch (error) {
+      console.error('Analysis failed after retries:', error)
+      setModalError('Unable to analyze article')
+
+      // Fallback mock result so UI remains informative
+      const fallback = {
+        significance: Math.floor(Math.random() * 8) + 3,
+        category: article.category || 'General',
+        region: article.region || 'Global',
+        analysis: 'Mock analysis generated for demo purposes.',
+      }
+      setModalResult(fallback)
+      setArticles((prev) => prev.map((a) => (a.url === article.url ? { ...a, significance: fallback.significance } : a)))
+      analysisCacheRef.set(cacheKey, fallback)
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  const performRelatedFetch = async (article: NewsArticle) => {
+    setRelatedArticlesLoading(true)
     try {
       const relatedResponse = await fetch("/api/related-articles", {
         method: "POST",
@@ -200,6 +203,99 @@ export default function NewsAggregator() {
     } finally {
       setRelatedArticlesLoading(false)
     }
+  }
+
+  const performAuthentication = async (article: NewsArticle) => {
+    setAuthLoading(true)
+    setAuthError(null)
+    setAuthResult(null)
+
+    try {
+      const requestBody = {
+        article_text: article.title + ". " + article.description,
+      }
+
+      console.log('Sending authentication request:', requestBody)
+
+      const response = await fetch("https://ai-agent-hlgo.onrender.com/api/check_fake_news", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      })
+
+      const data = await response.json()
+      console.log('Received authentication response:', data)
+
+      // Check if response is an error (FastAPI validation error format)
+      if (data.detail) {
+        if (Array.isArray(data.detail)) {
+          // FastAPI validation error
+          const errorMessages = data.detail.map((err: any) => err.msg || JSON.stringify(err)).join(', ')
+          setAuthError(`API Error: ${errorMessages}`)
+        } else if (typeof data.detail === 'string') {
+          setAuthError(`API Error: ${data.detail}`)
+        } else {
+          setAuthError('API returned an error response')
+        }
+      } else if (!response.ok) {
+        setAuthError(`API Error: ${response.status} ${response.statusText}`)
+      } else {
+        setAuthResult(data)
+      }
+    } catch (err) {
+      console.error('Authentication error:', err)
+      setAuthError(`Error checking authenticity: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  // Reactive data fetching based on active tab
+  useEffect(() => {
+    if (!modalArticle) return
+
+    if (modalTab === 'summary' && !modalResult && !modalLoading && !modalError) {
+      performAnalysis(modalArticle)
+    } else if (modalTab === 'related' && relatedArticles.length === 0 && !relatedArticlesLoading) {
+      performRelatedFetch(modalArticle)
+    } else if (modalTab === 'authenticate' && !authResult && !authLoading && !authError) {
+      performAuthentication(modalArticle)
+    }
+  }, [modalTab, modalArticle])
+
+  // Basic stubs for analyze / persona /bulk-check to keep the page interactive
+  const handleAnalyze = async (article: NewsArticle) => {
+    // Reset state if switching articles
+    if (modalArticle?.url !== article.url) {
+      setModalResult(null)
+      setModalError(null)
+      setRelatedArticles([])
+      setAuthResult(null)
+      setAuthError(null)
+      setModalPersonaResult(null)
+      setModalPersonaTarget("")
+    }
+
+    setModalArticle(article)
+    setModalTab('summary')
+    // Data fetching will be triggered by useEffect
+  }
+
+  const handleAuthenticate = async (article: NewsArticle) => {
+    // Reset state if switching articles
+    if (modalArticle?.url !== article.url) {
+      setModalResult(null)
+      setModalError(null)
+      setRelatedArticles([])
+      setAuthResult(null)
+      setAuthError(null)
+      setModalPersonaResult(null)
+      setModalPersonaTarget("")
+    }
+
+    setModalArticle(article)
+    setModalTab('authenticate')
+    // Data fetching will be triggered by useEffect
   }
 
   const evaluatePersona = async () => {
@@ -432,6 +528,15 @@ export default function NewsAggregator() {
                         >
                           Related Articles
                         </button>
+                        <button
+                          onClick={() => setModalTab('authenticate')}
+                          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${modalTab === 'authenticate'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                          Authenticate
+                        </button>
                       </div>
 
                       {/* Tab Content */}
@@ -627,6 +732,205 @@ export default function NewsAggregator() {
                             </div>
                           </div>
                         )}
+
+                        {/* Authenticate Tab */}
+                        {modalTab === 'authenticate' && (
+                          <div className="space-y-6">
+                            {/* Loading State */}
+                            {authLoading && (
+                              <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                                <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                                <span className="text-sm font-medium text-foreground">Verifying article authenticity...</span>
+                              </div>
+                            )}
+
+                            {/* Error State */}
+                            {authError && (
+                              <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-800">
+                                <div className="flex items-start gap-2">
+                                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+                                  <div>
+                                    <h4 className="font-semibold text-red-900 dark:text-red-100">Verification Failed</h4>
+                                    <p className="text-sm text-red-700 dark:text-red-300 mt-1">{authError}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Results */}
+                            {!authLoading && authResult && (() => {
+                              // The API returns verdict as a single field containing everything
+                              const fullText = authResult.verdict || ''
+
+                              // Extract the verdict statement (first line before "Here's why:")
+                              let verdictStatement = fullText.split(/\n\n|Here's why:/i)[0] || 'Unknown'
+                              verdictStatement = verdictStatement.replace(/\*\*/g, '').replace(/\./g, '').trim()
+
+                              // Determine verdict type
+                              let verdictType = 'Unknown'
+                              if (verdictStatement.toLowerCase().includes('genuine') || verdictStatement.toLowerCase().includes('real')) {
+                                verdictType = 'Genuine'
+                              } else if (verdictStatement.toLowerCase().includes('fake') || verdictStatement.toLowerCase().includes('false')) {
+                                verdictType = 'Fake'
+                              } else if (verdictStatement.toLowerCase().includes('partial')) {
+                                verdictType = 'Partially True'
+                              }
+
+                              // Extract the explanation part (after "Here's why:")
+                              let explanationText = ''
+                              const hereWhyMatch = fullText.match(/Here's why:?\s*([\s\S]*)/i)
+                              if (hereWhyMatch) {
+                                explanationText = hereWhyMatch[1].trim()
+                              } else {
+                                // Fallback: take everything after the first paragraph
+                                const parts = fullText.split(/\n\n/)
+                                if (parts.length > 1) {
+                                  explanationText = parts.slice(1).join('\n\n')
+                                }
+                              }
+
+                              // Parse explanation into bullet points
+                              let bulletPoints: string[] = []
+
+                              if (authResult.reasons && Array.isArray(authResult.reasons)) {
+                                bulletPoints = authResult.reasons
+                              } else if (explanationText) {
+                                // Strategy 1: Match numbered list with bold headers (1. **Header:** text)
+                                let matches = explanationText.match(/\d+\.\s*\*\*[^*]+\*\*:?\s*[^\n]*(?:\n(?!\d+\.)[^\n]*)*/g)
+
+                                if (matches && matches.length > 0) {
+                                  bulletPoints = matches.map((item: string) => {
+                                    return item
+                                      .replace(/^\d+\.\s*/, '')
+                                      .replace(/\*\*/g, '')
+                                      .trim()
+                                  })
+                                } else {
+                                  // Strategy 2: Match simple numbered list
+                                  matches = explanationText.match(/\d+\.\s+[^\n]+(?:\n(?!\d+\.)[^\n]+)*/g)
+
+                                  if (matches && matches.length > 0) {
+                                    bulletPoints = matches.map((item: string) => {
+                                      return item.replace(/^\d+\.\s*/, '').replace(/\*\*/g, '').trim()
+                                    })
+                                  } else {
+                                    // Strategy 3: Split by line breaks
+                                    const lines = explanationText.split(/\n+/).filter((line: string) => line.trim().length > 10)
+
+                                    if (lines.length > 1) {
+                                      bulletPoints = lines.map((line: string) =>
+                                        line.replace(/^\d+\.\s*/, '').replace(/\*\*/g, '').trim()
+                                      )
+                                    } else {
+                                      // Last resort: show the whole explanation as one bullet
+                                      bulletPoints = [explanationText.replace(/\*\*/g, '').trim()]
+                                    }
+                                  }
+                                }
+                              }
+
+                              return (
+                                <div className="space-y-6">
+                                  {/* Main Verdict Heading */}
+                                  <div className="border-b-2 border-muted pb-4">
+                                    <h2 className="text-2xl font-bold text-foreground">
+                                      Verdict: {verdictType}
+                                    </h2>
+                                  </div>
+
+                                  {/* Explanation Section */}
+                                  <div className="space-y-4">
+                                    <h3 className="text-lg font-bold text-foreground border-l-4 border-primary pl-3">
+                                      Explanation
+                                    </h3>
+
+                                    {/* Evidence-based bullet points */}
+                                    <div className="ml-4 space-y-3">
+                                      {bulletPoints.length > 0 ? (
+                                        <>
+                                          {/* Context-based sub-heading */}
+                                          {verdictType === 'Genuine' && (
+                                            <p className="text-sm font-semibold text-foreground mb-2">Evidence and matching facts:</p>
+                                          )}
+                                          {verdictType === 'Fake' && (
+                                            <p className="text-sm font-semibold text-foreground mb-2">Contradictions, missing evidence, and false claims:</p>
+                                          )}
+                                          {verdictType === 'Partially True' && (
+                                            <p className="text-sm font-semibold text-foreground mb-2">Analysis of correct and incorrect parts:</p>
+                                          )}
+
+                                          <ul className="space-y-2">
+                                            {bulletPoints.map((point: string, idx: number) => (
+                                              <li key={idx} className="flex items-start gap-3 text-foreground">
+                                                <span className="text-foreground font-bold mt-0.5">•</span>
+                                                <span className="text-sm leading-relaxed">{point}</span>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </>
+                                      ) : (
+                                        <p className="text-sm text-muted-foreground italic">No detailed explanation provided.</p>
+                                      )}
+                                    </div>
+
+                                    {/* Additional metadata in clean format */}
+                                    {(authResult.confidence || authResult.sources || authResult.warnings) && (
+                                      <div className="mt-6 pt-6 border-t border-muted space-y-4">
+                                        {/* Confidence Score */}
+                                        {authResult.confidence && (
+                                          <div className="space-y-2">
+                                            <h4 className="text-sm font-bold text-foreground">Confidence Score</h4>
+                                            <div className="flex items-center gap-3">
+                                              <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                                                <div
+                                                  className="h-full bg-foreground transition-all duration-500"
+                                                  style={{ width: `${Math.min(100, authResult.confidence)}%` }}
+                                                />
+                                              </div>
+                                              <span className="text-sm font-bold text-foreground min-w-[3rem] text-right">
+                                                {authResult.confidence}%
+                                              </span>
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Sources */}
+                                        {authResult.sources && Array.isArray(authResult.sources) && authResult.sources.length > 0 && (
+                                          <div className="space-y-2">
+                                            <h4 className="text-sm font-bold text-foreground">Sources Verified</h4>
+                                            <ul className="ml-4 space-y-1">
+                                              {authResult.sources.map((source: string, idx: number) => (
+                                                <li key={idx} className="flex items-start gap-3 text-foreground">
+                                                  <span className="text-foreground font-bold">•</span>
+                                                  <span className="text-sm">{source}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+
+                                        {/* Warnings */}
+                                        {authResult.warnings && Array.isArray(authResult.warnings) && authResult.warnings.length > 0 && (
+                                          <div className="space-y-2">
+                                            <h4 className="text-sm font-bold text-orange-600 dark:text-orange-400">Warnings</h4>
+                                            <ul className="ml-4 space-y-1">
+                                              {authResult.warnings.map((warning: string, idx: number) => (
+                                                <li key={idx} className="flex items-start gap-3 text-foreground">
+                                                  <span className="text-orange-600 dark:text-orange-400 font-bold">•</span>
+                                                  <span className="text-sm">{warning}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        )}
                       </div>
 
                       {/* Footer */}
@@ -686,7 +990,12 @@ export default function NewsAggregator() {
           {/* News Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredArticles.map((article, index) => (
-              <NewsCard key={`${article.url}-${index}`} article={article} onAnalyze={handleAnalyze} />
+              <NewsCard
+                key={`${article.url}-${index}`}
+                article={article}
+                onAnalyze={handleAnalyze}
+                onAuthenticate={handleAuthenticate}
+              />
             ))}
           </div>
 
@@ -705,4 +1014,10 @@ export default function NewsAggregator() {
   )
 }
 
-
+export default function NewsAggregator() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="text-center"><Globe className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" /><p className="text-muted-foreground">Loading...</p></div></div>}>
+      <NewsAggregatorContent />
+    </Suspense>
+  )
+}
