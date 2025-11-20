@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+export const dynamic = 'force-dynamic';
+
 // Lightweight country → continent map (expandable)
 const COUNTRY_TO_CONTINENT: Record<string, string> = {
   // Asia

@@ -1,0 +1,108 @@
+
+> my-v0-project@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.25
+  - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/13) ...
+   Generating static pages (3/13) 
+ ⨯ useSearchParams() should be wrapped in a suspense boundary at page "/404". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at l (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:11280)
+    at c (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:22216)
+    at d (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/172.js:1:2908)
+    at nj (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46252)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47572)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61547)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64547)
+    at nB (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:67539)
+    at nD (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:66681)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64854)
+
+Error occurred prerendering page "/_not-found". Read more: https://nextjs.org/docs/messages/prerender-error
+
+ ⨯ useSearchParams() should be wrapped in a suspense boundary at page "/dashboard". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at l (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:11280)
+    at c (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:22216)
+    at d (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/172.js:1:2908)
+    at nj (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46252)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47572)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61547)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64547)
+    at nB (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:67539)
+    at nD (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:66681)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64854)
+
+Error occurred prerendering page "/dashboard". Read more: https://nextjs.org/docs/messages/prerender-error
+
+   Generating static pages (6/13) 
+ ⨯ useSearchParams() should be wrapped in a suspense boundary at page "/login". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at l (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:11280)
+    at c (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:22216)
+    at d (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/172.js:1:2908)
+    at nj (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46252)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47572)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61547)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64547)
+    at nB (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:67539)
+    at nD (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:66681)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64854)
+
+Error occurred prerendering page "/login". Read more: https://nextjs.org/docs/messages/prerender-error
+
+ ⨯ useSearchParams() should be wrapped in a suspense boundary at page "/". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at l (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:11280)
+    at c (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:22216)
+    at d (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/172.js:1:2908)
+    at nj (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46252)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47572)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61547)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64547)
+    at nB (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:67539)
+    at nD (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:66681)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64854)
+
+Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+
+   Generating static pages (9/13) 
+strong-countries error B [Error]: Dynamic server usage: Route /api/strong-countries couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at g (/Volumes/Ak rajput/news-aggregator/.next/server/app/api/strong-countries/route.js:1:3022)
+    at /Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /Volumes/Ak rajput/news-aggregator/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/Volumes/Ak rajput/news-aggregator/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:25:19)
+    at ContextAPI.with (/Volumes/Ak rajput/news-aggregator/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NoopTracer.startActiveSpan (/Volumes/Ak rajput/news-aggregator/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:65:31)
+    at ProxyTracer.startActiveSpan (/Volumes/Ak rajput/news-aggregator/node_modules/@opentelemetry/api/build/src/trace/ProxyTracer.js:36:24)
+    at /Volumes/Ak rajput/news-aggregator/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/strong-countries couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+ ⨯ useSearchParams() should be wrapped in a suspense boundary at page "/demo". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at l (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:11280)
+    at c (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/620.js:1:22216)
+    at d (/Volumes/Ak rajput/news-aggregator/.next/server/chunks/172.js:1:2908)
+    at nj (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46252)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47572)
+    at nM (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61547)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64547)
+    at nB (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:67539)
+    at nD (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:66681)
+    at nN (/Volumes/Ak rajput/news-aggregator/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64854)
+
+Error occurred prerendering page "/demo". Read more: https://nextjs.org/docs/messages/prerender-error
+
+ ✓ Generating static pages (13/13)
+
+> Export encountered errors on following paths:
+	/_not-found/page: /_not-found
+	/dashboard/page: /dashboard
+	/demo/page: /demo
+	/login/page: /login
+	/page: /

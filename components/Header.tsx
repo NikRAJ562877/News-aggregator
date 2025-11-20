@@ -1,12 +1,12 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, Suspense } from "react"
 import { useAuth } from "./AuthProvider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 
-export default function Header() {
+function HeaderContent() {
   const { user, login, register, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -118,5 +118,13 @@ export default function Header() {
         </div>
       )}
     </header>
+  )
+}
+
+export default function Header() {
+  return (
+    <Suspense fallback={<header className="border-b bg-card h-[73px]" />}>
+      <HeaderContent />
+    </Suspense>
   )
 }
