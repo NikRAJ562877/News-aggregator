@@ -86,7 +86,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
       {/* Floating action button */}
-        <motion.div
+      <motion.div
         initial={{ opacity: 0, scale: 0 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 2 }}
@@ -169,14 +169,14 @@ export default function LandingPage() {
           className="text-center max-w-4xl mx-auto relative z-10"
         >
           <div className="flex justify-center mb-6">
-            <motion.div
+            {/* <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
               className="relative"
             >
               <Globe className="h-20 w-20 text-emerald-400/20" />
               <Globe className="h-12 w-12 text-emerald-400 absolute top-4 left-4" />
-            </motion.div>
+            </motion.div> */}
           </div>
 
           <h1 className="text-6xl md:text-7xl font-bold mb-6 leading-tight">

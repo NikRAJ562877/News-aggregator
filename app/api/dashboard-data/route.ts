@@ -28,33 +28,38 @@ export async function GET() {
     try {
         console.log(`[DashboardAPI] Selected topics: ${selectedTopics.join(", ")}`)
 
-        const promises = selectedTopics.map(async (topic) => {
-            // Fetch top 3 articles for each topic
-            const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(topic)}&sortBy=publishedAt&language=en&pageSize=3&apiKey=${apiKey}`
-            console.log(`[DashboardAPI] Fetching for topic: ${topic}`)
-
-            try {
-                const res = await fetch(url)
-                if (!res.ok) {
-                    const errText = await res.text()
-                    console.error(`[DashboardAPI] NewsAPI error for ${topic}: ${res.status} ${res.statusText}`, errText)
+        // Fetch topics and top headlines in parallel
+        const [topicResults, headlinesRes] = await Promise.all([
+            Promise.all(selectedTopics.map(async (topic) => {
+                const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(topic)}&sortBy=publishedAt&language=en&pageSize=3&apiKey=${apiKey}`
+                try {
+                    const res = await fetch(url)
+                    if (!res.ok) return { topic, articles: [] }
+                    const data = await res.json()
+                    return { topic, articles: data.articles || [] }
+                } catch (err) {
                     return { topic, articles: [] }
                 }
+            })),
+            fetch(`https://newsapi.org/v2/top-headlines?language=en&pageSize=60&apiKey=${apiKey}`)
+        ])
 
-                const data = await res.json()
-                return {
-                    topic,
-                    articles: data.articles || []
+        // Process Headlines for Sources
+        let sources: { name: string, count: number }[] = []
+        if (headlinesRes.ok) {
+            const data = await headlinesRes.json()
+            const sourceCounts: Record<string, number> = {}
+            data.articles?.forEach((a: any) => {
+                if (a.source?.name && a.source.name !== "[Removed]") {
+                    sourceCounts[a.source.name] = (sourceCounts[a.source.name] || 0) + 1
                 }
-            } catch (err) {
-                console.error(`[DashboardAPI] Fetch error for ${topic}:`, err)
-                return { topic, articles: [] }
-            }
-        })
+            })
+            sources = Object.entries(sourceCounts)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count)
+        }
 
-        const results = await Promise.all(promises)
-        console.log(`[DashboardAPI] Returning ${results.length} topics. Articles found: ${results.map(r => r.articles.length).join(', ')}`)
-        return NextResponse.json({ topics: results })
+        return NextResponse.json({ topics: topicResults, sources })
     } catch (error) {
         console.error("Dashboard data fetch failed:", error)
         return NextResponse.json({ error: `Failed to fetch dashboard data: ${error instanceof Error ? error.message : String(error)}` }, { status: 500 })

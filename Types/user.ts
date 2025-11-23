@@ -1,3 +1,5 @@
+import { NewsArticle } from "@/lib/types"
+
 export interface UserStats {
   totalArticlesViewed: number
   articlesAnalyzed: number
@@ -26,4 +28,5 @@ export interface UserProfile {
     emailNotifications: boolean
     favoriteCategories: string[]
   }
+  savedArticles: NewsArticle[]
 }

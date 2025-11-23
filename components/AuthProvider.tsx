@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
 import { mockUsers } from "@/lib/mockUsers"
 import type { UserActivity, UserProfile, UserStats } from "@/Types/user"
+import { NewsArticle } from "@/lib/types"
 import { useRouter } from "next/navigation"
 
 interface AuthContextValue {
@@ -13,6 +14,7 @@ interface AuthContextValue {
   register: (name: string, email: string) => Promise<UserProfile>
   logout: () => void
   addActivity: (activity: Omit<UserActivity, "id" | "timestamp">) => void
+  toggleSaveArticle: (article: NewsArticle) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -31,7 +33,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
       const raw = localStorage.getItem("current_user")
-      return raw ? JSON.parse(raw) : null
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      // Ensure savedArticles exists for legacy data
+      return { ...parsed, savedArticles: parsed.savedArticles || [] }
     } catch {
       return null
     }
@@ -49,19 +54,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem("mock_users", JSON.stringify(users))
-    } catch {}
+    } catch { }
   }, [users])
 
   useEffect(() => {
     try {
       localStorage.setItem("current_user", JSON.stringify(user))
-    } catch {}
+    } catch { }
   }, [user])
 
   useEffect(() => {
     try {
       localStorage.setItem("activities", JSON.stringify(activities))
-    } catch {}
+    } catch { }
   }, [activities])
 
   const generateId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`
@@ -99,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailNotifications: false,
         favoriteCategories: [],
       },
+      savedArticles: [],
     }
     setUsers((s) => [newUser, ...s])
     setUser(newUser)
@@ -139,6 +145,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     register,
     logout,
     addActivity,
+    toggleSaveArticle: (article: NewsArticle) => {
+      if (!user) return
+      const isSaved = user.savedArticles.some((a) => a.url === article.url)
+      let newSaved = []
+      if (isSaved) {
+        newSaved = user.savedArticles.filter((a) => a.url !== article.url)
+      } else {
+        newSaved = [article, ...user.savedArticles]
+        addActivity({ type: "favorite", articleTitle: article.title, details: "Saved to Dossier" })
+      }
+
+      const updatedUser = { ...user, savedArticles: newSaved }
+      setUser(updatedUser)
+      setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)))
+    },
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

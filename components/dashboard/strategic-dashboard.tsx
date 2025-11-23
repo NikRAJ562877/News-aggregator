@@ -7,10 +7,20 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { KnowledgeGraph } from "./knowledge-graph"
+import { StrategicAdvisor } from "./strategic-advisor"
 import { fetchAnalysisWithRetry } from "@/lib/analyzeUtils"
 import { NewsArticle } from "@/lib/types"
 import { ArrowRight, BarChart3, Globe, Network, Zap, ExternalLink, Loader2 } from "lucide-react"
 import { TypingAnimator } from "../typing-animator"
+import { Progress } from "@/components/ui/progress"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
 
 // Helper component for fetching timeline links
 function TimelineLink({ event, date, isLast, articleUrl }: { event: string, date: string, isLast: boolean, articleUrl?: string }) {
@@ -95,6 +105,7 @@ function TimelineLink({ event, date, isLast, articleUrl }: { event: string, date
 export function StrategicDashboard() {
     const auth = useAuth()
     const [spotlightData, setSpotlightData] = useState<{ topic: string; articles: NewsArticle[] }[]>([])
+    const [sourceData, setSourceData] = useState<{ name: string; count: number }[]>([])
     const [loadingSpotlight, setLoadingSpotlight] = useState(true)
 
     // Deep Dive State
@@ -107,6 +118,7 @@ export function StrategicDashboard() {
             .then(res => res.json())
             .then(data => {
                 if (data.topics) setSpotlightData(data.topics)
+                if (data.sources) setSourceData(data.sources)
                 setLoadingSpotlight(false)
             })
             .catch(err => {
@@ -156,66 +168,121 @@ export function StrategicDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <Card className="md:col-span-1 bg-card/50 border-border/50 shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Intelligence Gathered</CardTitle>
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Source Intelligence</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-4xl font-bold text-primary">{auth.user?.stats.totalArticlesViewed || 0}</div>
-                        <p className="text-sm text-muted-foreground mt-2">Articles analyzed this session</p>
+                        {loadingSpotlight ? (
+                            <div className="space-y-2">
+                                {[1, 2, 3].map(i => <div key={i} className="h-4 bg-muted/20 animate-pulse rounded" />)}
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="space-y-3">
+                                    {sourceData.slice(0, 5).map((source, i) => (
+                                        <div key={i} className="space-y-1">
+                                            <div className="flex justify-between text-xs">
+                                                <span className="font-medium truncate max-w-[120px]">{source.name}</span>
+                                                <span className="text-muted-foreground">{source.count}</span>
+                                            </div>
+                                            <Progress value={(source.count / (sourceData[0]?.count || 1)) * 100} className="h-1.5" />
+                                        </div>
+                                    ))}
+                                </div>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="sm" className="w-full text-xs h-7">
+                                            See All Sources
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-h-[80vh] overflow-y-auto">
+                                        <DialogHeader>
+                                            <DialogTitle>Global Intelligence Sources</DialogTitle>
+                                            <DialogDescription>
+                                                Breakdown of news sources currently active in the global feed.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                                            {sourceData.map((source, i) => (
+                                                <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/30 border border-border/40">
+                                                    <span className="font-medium text-sm">{source.name}</span>
+                                                    <Badge variant="secondary" className="text-xs">{source.count}</Badge>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
                 <Card className="md:col-span-3 border-border/50 shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg font-medium">
                             <BarChart3 className="h-5 w-5 text-primary" />
-                            Reading Activity
+                            Dossier Status
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="h-[120px] w-full bg-muted/5 rounded-lg flex items-end justify-between px-6 pb-4 gap-3">
-                            {[40, 25, 60, 30, 80, 45, 20, 55, 70, 35, 50, 65].map((h, i) => (
-                                <div key={i} className="w-full bg-primary/20 hover:bg-primary/50 transition-all duration-300 rounded-t-sm" style={{ height: `${h}%` }} />
-                            ))}
+                    <CardContent className="grid grid-cols-3 gap-4">
+                        <div className="bg-muted/10 p-4 rounded-lg border border-border/50">
+                            <div className="text-2xl font-bold text-foreground">{auth.user?.savedArticles.length || 0}</div>
+                            <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Files Saved</div>
+                        </div>
+                        <div className="bg-muted/10 p-4 rounded-lg border border-border/50">
+                            <div className="text-2xl font-bold text-foreground">
+                                {auth.user?.savedArticles.length ?
+                                    Object.entries(auth.user.savedArticles.reduce((acc, a) => {
+                                        acc[a.category || 'General'] = (acc[a.category || 'General'] || 0) + 1;
+                                        return acc;
+                                    }, {} as Record<string, number>)).sort((a, b) => b[1] - a[1])[0][0]
+                                    : 'N/A'}
+                            </div>
+                            <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Top Category</div>
+                        </div>
+                        <div className="bg-muted/10 p-4 rounded-lg border border-border/50">
+                            <div className="text-2xl font-bold text-foreground">{auth.user?.stats.articlesAnalyzed || 0}</div>
+                            <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Deep Dives</div>
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Row 2: Topic Spotlight */}
+            {/* Row 2: Mission Dossier (Saved Articles) */}
             <div className="space-y-6">
                 <h2 className="text-2xl font-semibold flex items-center gap-3">
-                    <TypingAnimator text="Topic Spotlight" />
-                    <Badge variant="secondary" className="ml-2 font-normal text-xs px-2 py-0.5">AI Curated</Badge>
+                    <TypingAnimator text="Mission Dossier" />
+                    <Badge variant="secondary" className="ml-2 font-normal text-xs px-2 py-0.5">Classified</Badge>
                 </h2>
 
-                {loadingSpotlight ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {[1, 2].map(i => <div key={i} className="h-72 bg-muted/20 animate-pulse rounded-xl" />)}
+                {auth.user?.savedArticles.length === 0 ? (
+                    <div className="text-center py-12 bg-muted/10 rounded-xl border border-dashed border-border">
+                        <p className="text-muted-foreground">No classified files found.</p>
+                        <Button variant="link" onClick={() => window.location.href = '/demo'} className="mt-2">
+                            Return to Intel Feed to save articles
+                        </Button>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {spotlightData.map((group, idx) => (
-                            <Card key={idx} className="overflow-hidden border-none shadow-lg ring-1 ring-border/50 group hover:ring-primary/30 transition-all duration-300">
-                                <CardHeader className="bg-muted/30 pb-4 border-b border-border/40">
-                                    <CardTitle className="flex justify-between items-center text-xl">
-                                        <span className="font-bold text-foreground/90">{group.topic}</span>
-                                        <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="pt-6 space-y-5">
-                                    {group.articles.map((article, i) => (
-                                        <div key={i} className="group/article cursor-pointer" onClick={() => handleDeepDive(article)}>
-                                            <h4 className="text-base font-medium group-hover/article:text-primary transition-colors line-clamp-1 leading-snug">
-                                                {article.title}
-                                            </h4>
-                                            <div className="flex justify-between mt-2 text-xs text-muted-foreground font-medium">
-                                                <span className="bg-muted px-2 py-0.5 rounded">{article.source.name}</span>
-                                                <span>{new Date(article.publishedAt).toLocaleDateString()}</span>
-                                            </div>
+                        <Card className="col-span-2 overflow-hidden border-none shadow-lg ring-1 ring-border/50 bg-card/50">
+                            <CardHeader className="bg-muted/30 pb-4 border-b border-border/40">
+                                <CardTitle className="flex justify-between items-center text-xl">
+                                    <span className="font-bold text-foreground/90">Saved Intelligence</span>
+                                    <Badge variant="outline">{auth.user?.savedArticles.length} Files</Badge>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {auth.user?.savedArticles.map((article, i) => (
+                                    <div key={i} className="group/article cursor-pointer p-4 rounded-lg bg-background border border-border/50 hover:border-primary/50 transition-all" onClick={() => handleDeepDive(article)}>
+                                        <h4 className="text-base font-medium group-hover/article:text-primary transition-colors line-clamp-2 leading-snug mb-2">
+                                            {article.title}
+                                        </h4>
+                                        <div className="flex justify-between items-center text-xs text-muted-foreground font-medium">
+                                            <span className="bg-muted px-2 py-0.5 rounded">{article.source.name}</span>
+                                            <span>{new Date(article.publishedAt).toLocaleDateString()}</span>
                                         </div>
-                                    ))}
-                                </CardContent>
-                            </Card>
-                        ))}
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
                     </div>
                 )}
             </div>
@@ -304,14 +371,17 @@ export function StrategicDashboard() {
                                             </div>
                                         </div>
 
-                                        {/* Right Column: Knowledge Graph (8 cols) */}
-                                        <div className="lg:col-span-8">
-                                            <div className="h-full min-h-[500px] rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden relative">
+                                        {/* Right Column: Knowledge Graph & Advisor (8 cols) */}
+                                        <div className="lg:col-span-8 space-y-8">
+                                            <div className="h-[500px] rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden relative">
                                                 <div className="absolute top-4 left-4 z-10 bg-background/80 backdrop-blur px-3 py-1 rounded-full text-xs font-medium border shadow-sm">
                                                     Interactive Knowledge Graph
                                                 </div>
                                                 <KnowledgeGraph data={analysisResult.graph_data} />
                                             </div>
+
+                                            {/* Strategic Advisor */}
+                                            <StrategicAdvisor />
                                         </div>
                                     </div>
                                 ) : null}

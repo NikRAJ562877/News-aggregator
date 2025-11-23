@@ -5,8 +5,9 @@ import { MotionCard } from "@/components/motion-card"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, Clock, Globe } from "lucide-react"
+import { ExternalLink, Clock, Globe, Bookmark } from "lucide-react"
 import type { NewsArticle } from "@/lib/types"
+import { useAuth } from "@/components/AuthProvider"
 
 
 interface NewsCardProps {
@@ -16,8 +17,11 @@ interface NewsCardProps {
 }
 
 export function NewsCard({ article, onAnalyze, onAuthenticate: onAuthenticateProp }: NewsCardProps) {
+  const auth = useAuth()
   const [authenticating, setAuthenticating] = useState(false)
   const [verdict, setVerdict] = useState<string | null>(null)
+
+  const isSaved = auth.user?.savedArticles?.some(a => a.url === article.url) || false
 
   const getSignificanceColor = (significance?: number) => {
     if (!significance) return "bg-muted"
@@ -154,6 +158,20 @@ export function NewsCard({ article, onAnalyze, onAuthenticate: onAuthenticatePro
           >
             {authenticating ? "Checking..." : "Authenticate"}
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-2"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (auth.user) {
+                auth.toggleSaveArticle(article)
+              }
+            }}
+            title={isSaved ? "Remove from Dossier" : "Add to Dossier"}
+          >
+            <Bookmark className={`h-4 w-4 ${isSaved ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+          </Button>
         </div>
 
         {verdict && (
@@ -162,6 +180,6 @@ export function NewsCard({ article, onAnalyze, onAuthenticate: onAuthenticatePro
           </div>
         )}
       </CardContent>
-    </MotionCard>
+    </MotionCard >
   )
 }

@@ -19,5 +19,6 @@ export const mockUsers: UserProfile[] = [
       emailNotifications: true,
       favoriteCategories: ["Diplomacy", "Trade"],
     },
+    savedArticles: [],
   },
 ]
