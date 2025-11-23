@@ -70,7 +70,7 @@ export function KnowledgeGraph({ data }: KnowledgeGraphProps) {
 
     return (
         <div className="w-full h-[400px] bg-card rounded border relative overflow-hidden">
-            <div className="absolute top-2 left-2 z-10 flex gap-2 text-xs">
+            <div className="absolute top-2 right-2 z-10 flex gap-2 text-xs">
                 {["Country", "Person", "Organization", "Event"].map(type => (
                     <div key={type} className="flex items-center gap-1 bg-background/80 px-2 py-1 rounded shadow-sm backdrop-blur">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getNodeColor(type) }} />

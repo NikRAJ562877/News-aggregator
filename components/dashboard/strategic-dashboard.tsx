@@ -9,8 +9,88 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { KnowledgeGraph } from "./knowledge-graph"
 import { fetchAnalysisWithRetry } from "@/lib/analyzeUtils"
 import { NewsArticle } from "@/lib/types"
-import { ArrowRight, BarChart3, Globe, Network, Zap } from "lucide-react"
+import { ArrowRight, BarChart3, Globe, Network, Zap, ExternalLink, Loader2 } from "lucide-react"
 import { TypingAnimator } from "../typing-animator"
+
+// Helper component for fetching timeline links
+function TimelineLink({ event, date, isLast, articleUrl }: { event: string, date: string, isLast: boolean, articleUrl?: string }) {
+    const [linkData, setLinkData] = useState<{ url: string, title: string, source: string } | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(false)
+
+    useEffect(() => {
+        if (isLast && articleUrl) {
+            setLoading(false)
+            return
+        }
+
+        const fetchLink = async () => {
+            try {
+                const query = `${event} ${date} news`
+                const res = await fetch(`/api/search-link?query=${encodeURIComponent(query)}`)
+                if (res.ok) {
+                    const data = await res.json()
+                    setLinkData(data)
+                } else {
+                    setError(true)
+                }
+            } catch (e) {
+                setError(true)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchLink()
+    }, [event, date, isLast, articleUrl])
+
+    // Fallback URL (DuckDuckGo)
+    const ddgUrl = `https://duckduckgo.com/?q=!ducky+${encodeURIComponent(event + " " + date + " news")}`
+
+    if (isLast && articleUrl) {
+        return (
+            <a
+                href={articleUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-medium flex items-center gap-1 shrink-0 transition-colors text-primary hover:text-primary/80"
+                title="Read Original Article"
+            >
+                Read Article <ArrowRight className="h-3 w-3" />
+            </a>
+        )
+    }
+
+    if (loading) {
+        return <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Finding source...</span>
+    }
+
+    if (error || !linkData) {
+        return (
+            <a
+                href={ddgUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-medium text-muted-foreground hover:text-primary flex items-center gap-1 shrink-0 transition-colors"
+                title="Search for this event"
+            >
+                Source <ArrowRight className="h-3 w-3" />
+            </a>
+        )
+    }
+
+    return (
+        <a
+            href={linkData.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1 shrink-0 transition-colors max-w-[150px] truncate"
+            title={linkData.title}
+        >
+            {linkData.source} <ExternalLink className="h-3 w-3" />
+        </a>
+    )
+}
 
 export function StrategicDashboard() {
     const auth = useAuth()
@@ -179,13 +259,27 @@ export function StrategicDashboard() {
                                                     <span className="w-2 h-2 rounded-full bg-blue-500" /> Historical Timeline
                                                 </h4>
                                                 <div className="relative border-l-2 border-muted ml-3 space-y-6 pl-6 py-2">
-                                                    {analysisResult.timeline?.map((item: any, idx: number) => (
-                                                        <div key={idx} className="relative">
-                                                            <div className="absolute -left-[31px] top-1 h-4 w-4 rounded-full border-2 border-background bg-blue-500" />
-                                                            <span className="text-xs font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded mb-1 inline-block">{item.date}</span>
-                                                            <p className="text-sm text-foreground/80 leading-snug">{item.event}</p>
-                                                        </div>
-                                                    ))}
+                                                    {analysisResult.timeline?.map((item: any, idx: number) => {
+                                                        const isLast = idx === (analysisResult.timeline?.length || 0) - 1
+
+                                                        return (
+                                                            <div key={idx} className="relative">
+                                                                <div className={`absolute -left-[31px] top-1 h-4 w-4 rounded-full border-2 border-background ${isLast ? "bg-primary animate-pulse" : "bg-blue-500"}`} />
+                                                                <span className={`text-xs font-mono px-2 py-0.5 rounded mb-1 inline-block ${isLast ? "text-primary bg-primary/10 font-bold" : "text-blue-600 bg-blue-50"}`}>
+                                                                    {item.date}
+                                                                </span>
+                                                                <div className="flex items-start justify-between gap-2">
+                                                                    <p className={`text-sm leading-snug ${isLast ? "font-medium text-foreground" : "text-foreground/80"}`}>{item.event}</p>
+                                                                    <TimelineLink
+                                                                        event={item.event}
+                                                                        date={item.date}
+                                                                        isLast={isLast}
+                                                                        articleUrl={selectedArticle?.url}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
                                                 </div>
                                             </div>
 
