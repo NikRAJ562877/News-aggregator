@@ -100,6 +100,12 @@ function NewsAggregatorContent() {
 
   // Fetch articles initially
   useEffect(() => {
+    // Check for onboarding requirement
+    if (auth.user && !auth.user.persona) {
+      router.replace("/onboarding")
+      return
+    }
+
     let mounted = true
     setLoading(true)
     fetch('/api/news')
@@ -115,7 +121,7 @@ function NewsAggregatorContent() {
         setLoading(false)
       })
     return () => { mounted = false }
-  }, [])
+  }, [auth.user, router])
 
   // Filter articles when filters/search change
   useEffect(() => {

@@ -29,4 +29,6 @@ export interface UserProfile {
     favoriteCategories: string[]
   }
   savedArticles: NewsArticle[]
+  persona?: "Citizen" | "Professional" | "Executive"
+  focusArea?: string
 }

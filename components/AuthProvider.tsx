@@ -15,6 +15,7 @@ interface AuthContextValue {
   logout: () => void
   addActivity: (activity: Omit<UserActivity, "id" | "timestamp">) => void
   toggleSaveArticle: (article: NewsArticle) => void
+  updateUser: (user: UserProfile) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -157,6 +158,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const updatedUser = { ...user, savedArticles: newSaved }
+      setUser(updatedUser)
+      setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)))
+    },
+    updateUser: (updatedUser: UserProfile) => {
       setUser(updatedUser)
       setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)))
     },

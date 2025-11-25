@@ -21,7 +21,12 @@ export default function LoginPage() {
     const u = await login(email)
     setIsLoading(false)
     if (!u) return setError("No user found with that email")
-    router.push("/demo")
+
+    if (!u.persona) {
+      router.push("/onboarding")
+    } else {
+      router.push("/demo")
+    }
   }
 
   const handleRegister = async () => {
@@ -29,7 +34,7 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       await register(name, email)
-      router.push("/demo")
+      router.push("/onboarding")
     } catch (err: any) {
       setError(err?.message ?? "Registration failed")
     } finally {
@@ -38,7 +43,11 @@ export default function LoginPage() {
   }
 
   if (user) {
-    router.replace("/demo")
+    if (!user.persona) {
+      router.replace("/onboarding")
+    } else {
+      router.replace("/demo")
+    }
     return null
   }
 
@@ -62,7 +71,7 @@ export default function LoginPage() {
               <LogIn className="w-5 h-5 text-blue-600" />
               Sign In
             </h2>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -70,18 +79,18 @@ export default function LoginPage() {
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <Input 
+                  <Input
                     type="email"
                     placeholder="you@example.com"
-                    className="pl-10 h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500" 
-                    value={email} 
+                    className="pl-10 h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500"
+                    value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                   />
                 </div>
               </div>
 
-              <Button 
+              <Button
                 className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-md hover:shadow-lg transition-all"
                 onClick={handleLogin}
                 disabled={isLoading || !email}
@@ -109,7 +118,7 @@ export default function LoginPage() {
               <UserPlus className="w-5 h-5 text-indigo-600" />
               Create Account
             </h2>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -117,17 +126,17 @@ export default function LoginPage() {
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <Input 
+                  <Input
                     type="text"
                     placeholder="John Doe"
-                    className="pl-10 h-11 border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white" 
-                    value={name} 
+                    className="pl-10 h-11 border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 bg-white"
+                    value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
                 </div>
               </div>
 
-              <Button 
+              <Button
                 className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium shadow-md hover:shadow-lg transition-all"
                 onClick={handleRegister}
                 disabled={isLoading || !name || !email}

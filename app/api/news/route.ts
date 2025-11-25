@@ -61,48 +61,118 @@ function detectRegion(article: any): string {
 }
 
 export async function GET(request: NextRequest) {
-  const apiKey = process.env.NEWSAPI_KEY
-  if (!apiKey) {
+  const searchParams = request.nextUrl.searchParams
+  const persona = searchParams.get('persona')
+  const focusArea = searchParams.get('focusArea')
+
+  const newsApiKey = process.env.NEWSAPI_KEY
+  const newsDataKey = process.env.NEWSDATA_API_KEY
+  const googleKey = process.env.GOOGLE_SEARCH_API_KEY || process.env.GOOGLE_CUSTOM_SEARCH || process.env.GOOGLE_API_KEY
+  const googleCx = process.env.GOOGLE_SEARCH_CX || process.env.GOOGLE_CUSTOM_SEARCH_CX || process.env.GOOGLE_CX
+
+  if (!newsApiKey) {
     return NextResponse.json({ error: "NewsAPI key is not configured" }, { status: 500 })
   }
 
-  // Refined, objective categories
-  const topics = ["military", "defense", "economics", "diplomacy", "technology", "energy"]
-  const fromDate = new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split("T")[0] // 7 days ago
-
   try {
+    // --- EXECUTIVE PERSONA (Innovation Radar) ---
+    if (persona === 'Executive' && focusArea && googleKey && googleCx) {
+      console.log(`Fetching Innovation Radar for ${focusArea}`)
+      const queries = [
+        `"${focusArea}" (patent OR "new startup" OR "research breakthrough" OR "disruptive technology") -stock -market`,
+        `"${focusArea}" future trends forecast 2025`
+      ]
+
+      const promises = queries.map(async q => {
+        const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=5&dateRestrict=m1`
+        const res = await fetch(url)
+        if (!res.ok) return []
+        const data = await res.json()
+        return data.items || []
+      })
+
+      const results = (await Promise.all(promises)).flat()
+
+      const articles: NewsArticle[] = results.map((item: any) => ({
+        title: item.title,
+        description: item.snippet,
+        url: item.link,
+        urlToImage: item.pagemap?.cse_image?.[0]?.src || null,
+        publishedAt: new Date().toISOString(), // Google Search doesn't always give precise dates in snippet
+        source: { name: item.displayLink },
+        content: item.snippet,
+        category: "Innovation",
+        region: "Global",
+        significance: 8, // High default for executive intel
+        sourceReliability: "High"
+      }))
+
+      return NextResponse.json({ articles })
+    }
+
+    // --- PROFESSIONAL PERSONA (Sector Watch) ---
+    if (persona === 'Professional' && focusArea && newsDataKey) {
+      console.log(`Fetching Sector Watch for ${focusArea} via NewsData.io`)
+      // NewsData.io allows category/q. We'll use 'q' for the focus area.
+      const url = `https://newsdata.io/api/1/news?apikey=${newsDataKey}&q=${encodeURIComponent(focusArea)}&language=en`
+      const res = await fetch(url)
+
+      if (res.ok) {
+        const data = await res.json()
+        const articles: NewsArticle[] = data.results.map((item: any) => ({
+          title: item.title,
+          description: item.description,
+          url: item.link,
+          urlToImage: item.image_url,
+          publishedAt: item.pubDate,
+          source: { name: item.source_id },
+          content: item.content,
+          category: focusArea,
+          region: "Global", // NewsData has country fields, could map later
+          significance: 7,
+          sourceReliability: "Medium"
+        }))
+        return NextResponse.json({ articles })
+      } else {
+        console.warn("NewsData.io failed, falling back to NewsAPI")
+      }
+    }
+
+    // --- FALLBACK / CITIZEN / GLOBAL ---
+    // If specific persona fetching failed or wasn't requested, use standard NewsAPI logic
+    // But if focusArea is present (fallback for Pro), use it as query
+
+    let topics = ["military", "defense", "economics", "diplomacy", "technology", "energy"]
+    if (focusArea) {
+      topics = [focusArea] // Narrow down to focus area if provided
+    }
+
+    const fromDate = new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split("T")[0]
+
     const promises = topics.map(async (topic) => {
       const intelligentQuery = await generateSearchQuery(topic)
-      console.log(`Generated Query for ${topic}: ${intelligentQuery}`) // For debugging
-
       const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
         intelligentQuery,
-      )}&from=${fromDate}&sortBy=publishedAt&language=en&pageSize=10&apiKey=${apiKey}`
+      )}&from=${fromDate}&sortBy=publishedAt&language=en&pageSize=10&apiKey=${newsApiKey}`
       const response = await fetch(url)
 
       if (!response.ok) {
         console.error(`NewsAPI error for topic ${topic}:`, await response.text())
-        return [] // Return empty array on error for this topic
+        return []
       }
 
       const data = await response.json()
-      // Tag each article with the topic it was fetched for
       return data.articles.map((article: any) => ({
         ...article,
-        category: topic, // Assign the original, simple topic as the category
+        category: topic,
       }))
     })
 
     const results = await Promise.all(promises)
     const allArticles = results.flat()
-
-    // Deduplicate articles based on URL
     const uniqueArticles = Array.from(new Map(allArticles.map((article) => [article.url, article])).values())
-
-    // Add placeholder reliability data for demonstration
     const reliabilityLevels: NewsArticle['sourceReliability'][] = ['High', 'Medium', 'Low', 'Opinion', 'Satire']
 
-    // Map to our NewsArticle type with region detection
     const articlesWithRegion = uniqueArticles.map((article: any) => ({
       title: article.title,
       description: article.description,
@@ -119,7 +189,12 @@ export async function GET(request: NextRequest) {
       sourceReliability: reliabilityLevels[Math.floor(Math.random() * reliabilityLevels.length)],
     }))
 
-    // Balance articles across regions - aim for ~10 total with 1-2 per region
+    // If it's a specific focus area, we don't need to balance regions as strictly
+    if (focusArea) {
+      return NextResponse.json({ articles: articlesWithRegion.slice(0, 20) })
+    }
+
+    // Balance articles across regions for Global Feed
     const regionGroups = new Map<string, typeof articlesWithRegion>()
     articlesWithRegion.forEach((article) => {
       if (!regionGroups.has(article.region)) {
@@ -128,18 +203,15 @@ export async function GET(request: NextRequest) {
       regionGroups.get(article.region)!.push(article)
     })
 
-    // Select up to 2 articles per region, aiming for ~10 total
     const balancedArticles: typeof articlesWithRegion = []
     const articlesPerRegion = 2
     regionGroups.forEach((regionArticles) => {
-      // Sort by publishedAt (newest first) and take top 2
       const sorted = regionArticles.sort(
         (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime(),
       )
       balancedArticles.push(...sorted.slice(0, articlesPerRegion))
     })
 
-    // Sort final list by published date and limit to 10
     const articles: NewsArticle[] = balancedArticles
       .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
       .slice(0, 10)
