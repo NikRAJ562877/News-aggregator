@@ -3,14 +3,14 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 
 // Support multiple Gemini API keys for load distribution (round-robin)
 const geminiApiKeys: string[] = Object.keys(process.env)
-  .filter((k) => k.startsWith("DEMO_NEWS_"))
+  .filter((k) => k.startsWith("PERSONA_EVAL_"))
   .map((k) => process.env[k] as string)
   .filter(Boolean)
 
 let currentKeyIndex = 0
 function getNextGenAI(): GoogleGenerativeAI {
   if (geminiApiKeys.length === 0) {
-    throw new Error("No Gemini API keys configured")
+    throw new Error("No Gemini API keys configured for Persona Eval")
   }
   const key = geminiApiKeys[currentKeyIndex % geminiApiKeys.length]
   currentKeyIndex++
@@ -29,32 +29,30 @@ export async function POST(request: NextRequest) {
     const genAI = getNextGenAI()
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' })
 
-    const prompt = `You are an expert geopolitical analyst. Given a news article and a target country, produce a concise, structured JSON assessment partitioned into who benefits and who is harmed, plus actionable steps the target country should consider.
+    const prompt = `
+      You are a Geopolitical Strategist advising the government of ${targetCountry}.
+      Analyze the following news article and its impact specifically on ${targetCountry}.
 
-Input:
-- targetCountry: ${targetCountry}
-- article.title: ${article.title}
-- article.description: ${article.description || ''}
-- article.region: ${article.region || ''}
-- article.significance: ${article.significance ?? 'unknown'}
-- article.category: ${article.category || ''}
+      Article Title: ${article.title}
+      Article Description: ${article.description}
+      Article Content: ${article.content}
 
-Return ONLY valid JSON with these fields:
-{
-  "impact": "positive" | "negative" | "neutral",
-  "goodFor": ["short phrase - actor or group"],        // who benefits from this article/event
-  "badFor": ["short phrase - actor or group"],         // who is harmed or disadvantaged
-  "competitors": [{ "name": "Country Name", "effect": "benefits" | "harmed" | "neutral", "reason": "short reason" }],
-  "recommendation": "One-line clear recommendation for the target country.",
-  "steps": ["short actionable step 1", "short actionable step 2"],
-  "confidence": number 0-100
-}
+      Return STRICTLY a JSON object with these fields:
+      - "impact": "positive" | "negative" | "neutral"
+      - "confidence": integer 0-100
+      - "diplomatic_leverage": "High" | "Medium" | "Low" (Current standing regarding this issue)
+      - "economic_exposure": "High" | "Medium" | "Low" (Financial risk/opportunity)
+      - "goodFor": Array of strings (Who benefits? e.g. specific industries, allies)
+      - "badFor": Array of strings (Who loses? e.g. competitors, specific sectors)
+      - "allies_impact": string (1 sentence on how this affects ${targetCountry}'s allies)
+      - "adversaries_impact": string (1 sentence on how this affects ${targetCountry}'s adversaries)
+      - "competitors": Array of objects { "name": "string", "effect": "string", "reason": "string" } (Identify 1-2 key rival nations/entities and the effect on them)
+      - "recommendation": string (1-2 sentences strategic advice)
+      - "steps": Array of strings (3 concrete, actionable policy steps ${targetCountry} should take immediately)
 
-Guidelines:
-- Keep strings concise (<= 300 chars). Use factual reasoning tied to the article (title/description/significance/category).
-- If the article has no meaningful external impact, set impact to "neutral" and provide monitoring steps and at least one proactive step.
-- Return strictly valid JSON and avoid commentary outside the JSON.
-`
+      Ensure the analysis is realistic and grounded in current geopolitics.
+      Return ONLY the JSON object.
+    `
 
     const result = await model.generateContent(prompt)
     const response = await result.response
