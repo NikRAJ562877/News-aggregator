@@ -5,18 +5,52 @@ import type { NewsArticle } from "@/lib/types";
 export const dynamic = 'force-dynamic';
 
 // Initialize the Google Generative AI client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "")
+// Support multiple Gemini API keys for load distribution
+const geminiApiKeys: string[] = Object.keys(process.env)
+  .filter((k) => k.startsWith("DEMO_NEWS_"))
+  .map((k) => process.env[k] as string)
+  .filter(Boolean)
+
+let currentKeyIndex = 0
+
+function getNextGenAI(): GoogleGenerativeAI {
+  if (geminiApiKeys.length === 0) {
+    console.warn("No Gemini API keys found, using default empty string which will fail.")
+    return new GoogleGenerativeAI("")
+  }
+  const key = geminiApiKeys[currentKeyIndex % geminiApiKeys.length]
+  currentKeyIndex++
+  return new GoogleGenerativeAI(key)
+}
+
+// Simple in-memory cache for search queries to save API tokens
+// Map<topic, { query: string, timestamp: number }>
+const queryCache = new Map<string, { query: string, timestamp: number }>()
+const CACHE_TTL = 60 * 60 * 1000 // 1 hour
 
 async function generateSearchQuery(topic: string): Promise<string> {
+  // Check cache first
+  const cached = queryCache.get(topic)
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    return cached.query
+  }
+
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" }) // Using a faster model for query generation
+    // Get a fresh client (and thus a rotated key) for each request
+    const genAI = getNextGenAI()
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }) // Using Flash for higher rate limits (15 RPM)
     const prompt = `Create a sophisticated, boolean-logic search query for NewsAPI to find articles about the geopolitical topic "${topic}". The query should be highly relevant and actively exclude common false positives. For example, for "defense", exclude sports. For "finance", focus on international economics, not personal finance. The query should be a single line of text. Example for 'military': ("military exercise" OR "troop deployment" OR "arms deal" OR "defense budget") AND NOT (sports OR game).`
 
     const result = await model.generateContent(prompt)
     const response = await result.response
     const text = response.text()
     // Clean up the response to ensure it's a valid query string
-    return text.trim().replace(/[\r\n]+/g, " ")
+    const cleanQuery = text.trim().replace(/[\r\n]+/g, " ")
+
+    // Save to cache
+    queryCache.set(topic, { query: cleanQuery, timestamp: Date.now() })
+
+    return cleanQuery
   } catch (error) {
     console.error(`Error generating query for topic ${topic}:`, error)
     // Fallback to a simple query if the LLM fails
@@ -84,7 +118,7 @@ export async function GET(request: NextRequest) {
       ]
 
       const promises = queries.map(async q => {
-        const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=5&dateRestrict=m1`
+        const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=2&dateRestrict=m1`
         const res = await fetch(url)
         if (!res.ok) return []
         const data = await res.json()
@@ -191,7 +225,7 @@ export async function GET(request: NextRequest) {
 
     // If it's a specific focus area, we don't need to balance regions as strictly
     if (focusArea) {
-      return NextResponse.json({ articles: articlesWithRegion.slice(0, 20) })
+      return NextResponse.json({ articles: articlesWithRegion.slice(0, 4) })
     }
 
     // Balance articles across regions for Global Feed

@@ -22,10 +22,11 @@ export const fetchAnalysisWithRetry = async (
   maxRetries: number = 3,
   initialDelayMs: number = 1000,
   keyIndex?: number,
+  analysisType?: 'general' | 'innovation' | 'sector',
 ): Promise<any> => {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const body: any = { article }
+      const body: any = { article, analysisType }
       if (typeof keyIndex === 'number') body.keyIndex = keyIndex
 
       const response = await fetch('/api/analyze', {

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // Support multiple Gemini API keys for load distribution
 // Discover any env var that starts with `GEMINI_API_KEY` (GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_FOO, ...)
 const geminiApiKeys: string[] = Object.keys(process.env)
-  .filter((k) => k.startsWith("GEMINI_API_KEY"))
+  .filter((k) => k.startsWith("DEMO_NEWS_"))
   .map((k) => process.env[k] as string)
   .filter(Boolean)
 
@@ -25,7 +25,7 @@ function getNextGenAI(): GoogleGenerativeAI {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { article, keyIndex }: { article: NewsArticle; keyIndex?: number } = body || {}
+    const { article, keyIndex, analysisType }: { article: NewsArticle; keyIndex?: number; analysisType?: 'general' | 'innovation' | 'sector' } = body || {}
 
     if (!article) {
       return NextResponse.json({ error: "Article content required" }, { status: 400 })
@@ -40,27 +40,77 @@ export async function POST(request: NextRequest) {
     }
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" })
 
-    const prompt = `
-      You are a concise, factual geopolitical analyst. Analyze the article below.
-      Return STRICTLY a JSON object with these fields:
-      - "significance": integer 1-10 (1 = low, 10 = critical)
-      - "category": one of ("Military","Diplomacy","Trade","Energy","Environment","Security","Other")
-      - "region": one of ("Europe","Asia Pacific","Middle East","Africa","Americas","Arctic","Global")
-      - "analysis": 1-3 sentence factual summary tied to the article content.
-      - "timeline": Array of objects { "date": "string", "event": "string" } (Extract 3-4 key dates/events leading up to this).
-      - "scenarios": Array of objects { "outcome": "Best Case" | "Worst Case" | "Most Likely", "probability": "High" | "Medium" | "Low", "description": "string" } (Predict 3 distinct future scenarios).
-      - "graph_data": {
-          "nodes": [{ "id": "EntityName", "type": "Country" | "Person" | "Organization" | "Event" }],
-          "links": [{ "source": "EntityName", "target": "EntityName", "label": "relationship" }]
-        }
-        (Extract 3-5 key entities and their relationships for a knowledge graph. Ensure source/target match node ids exactly.)
+    let prompt = ""
 
-      Use facts from the title, description, and content. Do not hallucinate.
-      Article Title: ${article.title}
-      Article Description: ${article.description || ''}
-      Article Content: ${article.content || ''}
-      Return ONLY the JSON object.
-    `
+    if (analysisType === 'innovation') {
+      prompt = `
+        You are a ruthless Venture Capital Analyst. Analyze this article for a founder/investor.
+        Return STRICTLY a JSON object with these fields:
+        - "significance": integer 1-10 (Disruption Potential)
+        - "category": "Deep Tech", "SaaS", "Biotech", "Fintech", "Consumer", "Other"
+        - "region": Primary market region
+        - "analysis": 2 sentence investment thesis or warning.
+        - "founder_lens": {
+            "ma_verdict": "Acquire" | "Partner" | "Invest" | "Ignore",
+            "synergy_score": 1-10 (Strategic Fit),
+            "tech_moat": "High" | "Medium" | "Low" (Defensibility explanation),
+            "competitors": ["Comp1", "Comp2"]
+        }
+        - "timeline": Array of objects { "date": "string", "event": "string" } (Key milestones).
+        - "scenarios": Array of objects { "outcome": "Unicorn" | "Acqui-hire" | "Fail", "probability": "High" | "Medium" | "Low", "description": "string" }.
+        
+        Use facts from the article.
+        Article Title: ${article.title}
+        Article Description: ${article.description || ''}
+        Article Content: ${article.content || ''}
+        Return ONLY the JSON object.
+        `
+    } else if (analysisType === 'sector') {
+      prompt = `
+        You are a Market Strategist. Analyze this article for a business executive.
+        Return STRICTLY a JSON object with these fields:
+        - "significance": integer 1-10 (Market Impact)
+        - "category": Industry Sector
+        - "region": Primary market
+        - "analysis": 2 sentence strategic outlook.
+        - "market_lens": {
+            "entry_signal": "Green Light" | "Yellow Light" | "Red Light",
+            "competitive_threat": "High" | "Medium" | "Low",
+            "opportunity": "string" (One specific opportunity for the user)
+        }
+        - "timeline": Array of objects { "date": "string", "event": "string" }.
+        - "scenarios": Array of objects { "outcome": "Bull" | "Bear" | "Stagnant", "probability": "High" | "Medium" | "Low", "description": "string" }.
+
+        Use facts from the article.
+        Article Title: ${article.title}
+        Article Description: ${article.description || ''}
+        Article Content: ${article.content || ''}
+        Return ONLY the JSON object.
+        `
+    } else {
+      // Default / General Prompt
+      prompt = `
+        You are a concise, factual geopolitical analyst. Analyze the article below.
+        Return STRICTLY a JSON object with these fields:
+        - "significance": integer 1-10 (1 = low, 10 = critical)
+        - "category": one of ("Military","Diplomacy","Trade","Energy","Environment","Security","Other")
+        - "region": one of ("Europe","Asia Pacific","Middle East","Africa","Americas","Arctic","Global")
+        - "analysis": 1-3 sentence factual summary tied to the article content.
+        - "timeline": Array of objects { "date": "string", "event": "string" } (Extract 3-4 key dates/events. Use specific dates like "Oct 2023" or "2024", avoid open ranges).
+        - "scenarios": Array of objects { "outcome": "Best Case" | "Worst Case" | "Most Likely", "probability": "High" | "Medium" | "Low", "description": "string" } (Predict 3 distinct future scenarios).
+        - "graph_data": {
+            "nodes": [{ "id": "EntityName", "type": "Country" | "Person" | "Organization" | "Event" }],
+            "links": [{ "source": "EntityName", "target": "EntityName", "label": "relationship" }]
+          }
+          (Extract 3-5 key entities and their relationships for a knowledge graph. Ensure source/target match node ids exactly.)
+  
+        Use facts from the title, description, and content. Do not hallucinate.
+        Article Title: ${article.title}
+        Article Description: ${article.description || ''}
+        Article Content: ${article.content || ''}
+        Return ONLY the JSON object.
+      `
+    }
 
     const result = await model.generateContent(prompt)
     const response = await result.response
@@ -132,6 +182,8 @@ export async function POST(request: NextRequest) {
       timeline: Array.isArray(analysis.timeline) ? analysis.timeline : [],
       scenarios: Array.isArray(analysis.scenarios) ? analysis.scenarios : [],
       graph_data: analysis.graph_data || { nodes: [], links: [] },
+      founder_lens: analysis.founder_lens || null,
+      market_lens: analysis.market_lens || null,
     }
 
     // Ensure significance is a sensible integer

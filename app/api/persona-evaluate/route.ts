@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 
 // Support multiple Gemini API keys for load distribution (round-robin)
 const geminiApiKeys: string[] = Object.keys(process.env)
-  .filter((k) => k.startsWith("GEMINI_API_KEY"))
+  .filter((k) => k.startsWith("DEMO_NEWS_"))
   .map((k) => process.env[k] as string)
   .filter(Boolean)
 
