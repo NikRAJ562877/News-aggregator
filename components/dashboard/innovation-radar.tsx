@@ -25,21 +25,6 @@ export function InnovationRadar({ focusArea, onArticleSelect }: { focusArea: str
                 const data = await res.json()
                 if (data.articles) {
                     setArticles(data.articles)
-                    // Trigger batch analysis for labels
-                    fetch('/api/batch-analyze', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ articles: data.articles.slice(0, 4) }) // Analyze top 4 for performance
-                    })
-                        .then(r => r.json())
-                        .then(analysisData => {
-                            if (analysisData.analyses) {
-                                const map: Record<string, any> = {}
-                                analysisData.analyses.forEach((a: any) => map[a.url] = a)
-                                setAnalyses(map)
-                            }
-                        })
-                        .catch(console.error)
                 }
             } catch (e) {
                 console.error(e)
@@ -75,11 +60,9 @@ export function InnovationRadar({ focusArea, onArticleSelect }: { focusArea: str
                     <Radio className="h-5 w-5 text-purple-400" />
                     Innovation Radar: {focusArea}
                 </h3>
-                <Badge variant="outline" className="text-purple-300 bg-purple-500/10 border-purple-500/30 animate-pulse">Scanning</Badge>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {articles.map((article, i) => {
-                    const analysis = analyses[article.url]
                     return (
                         <Card key={i} className="group hover:shadow-2xl transition-all duration-300 bg-slate-900/50 border-slate-800 hover:border-purple-500/50 cursor-pointer backdrop-blur-sm" onClick={() => handleCardClick(article)}>
                             <CardHeader className="pb-3">
@@ -93,22 +76,6 @@ export function InnovationRadar({ focusArea, onArticleSelect }: { focusArea: str
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-slate-400 line-clamp-3 mb-4">{article.description}</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {analysis ? (
-                                        <>
-                                            <Badge variant="secondary" className="text-[10px] bg-purple-900/30 text-purple-300 border border-purple-800/50">
-                                                <Zap className="h-3 w-3 mr-1" /> {analysis.significance >= 8 ? 'High Disruption' : 'Emerging Tech'}
-                                            </Badge>
-                                            <Badge variant="secondary" className="text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                                                {analysis.category}
-                                            </Badge>
-                                        </>
-                                    ) : (
-                                        <Badge variant="secondary" className="text-[10px] bg-slate-800 text-slate-500 animate-pulse">
-                                            Analyzing...
-                                        </Badge>
-                                    )}
-                                </div>
                             </CardContent>
                         </Card>
                     )

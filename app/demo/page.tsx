@@ -620,95 +620,140 @@ function NewsAggregatorContent() {
 
                                   {/* Persona Results */}
                                   {modalPersonaResult && (
-                                    <div className="mt-4 text-sm max-h-96 overflow-y-auto no-scrollbar bg-muted/10 p-4 rounded border">
-                                      {modalPersonaLoading && <div>Generating persona analysis…</div>}
+                                    <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                      {modalPersonaLoading && <div className="text-center py-8 text-muted-foreground">Generating strategic assessment...</div>}
 
                                       {!modalPersonaLoading && modalPersonaResult && !modalPersonaResult.error && (
-                                        <div className="space-y-4">
-                                          {/* Impact */}
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                              <span className="text-sm font-medium">Impact:</span>
-                                              <span
-                                                className={
-                                                  `inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${modalPersonaResult.impact === 'positive'
-                                                    ? 'bg-green-600 text-white'
-                                                    : modalPersonaResult.impact === 'negative'
-                                                      ? 'bg-red-600 text-white'
-                                                      : 'bg-gray-300 text-gray-800'
-                                                  }`
-                                                }
-                                              >
-                                                {String(modalPersonaResult.impact).toUpperCase()}
-                                              </span>
+                                        <>
+                                          {/* Top Level Impact Score */}
+                                          <div className="flex items-center justify-between bg-muted/30 p-4 rounded-lg border">
+                                            <div>
+                                              <div className="text-sm text-muted-foreground mb-1">Net Impact on {modalPersonaTarget}</div>
+                                              <div className="flex items-center gap-3">
+                                                <span
+                                                  className={
+                                                    `text-lg font-bold px-3 py-1 rounded-md uppercase tracking-wide ${modalPersonaResult.impact === 'positive'
+                                                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                                      : modalPersonaResult.impact === 'negative'
+                                                        ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/20'
+                                                        : 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/20'
+                                                    }`
+                                                  }
+                                                >
+                                                  {String(modalPersonaResult.impact)}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground border-l pl-3">
+                                                  Confidence: <span className="font-medium text-foreground">{modalPersonaResult.confidence}%</span>
+                                                </span>
+                                              </div>
                                             </div>
-                                            <div className="text-xs text-muted-foreground">Confidence: {modalPersonaResult.confidence}%</div>
-                                          </div>
-
-                                          {/* Leverage & Exposure */}
-                                          <div className="grid grid-cols-2 gap-4">
-                                            <div className="bg-background p-2 rounded border">
+                                            <div className="text-right space-y-1">
                                               <div className="text-xs text-muted-foreground">Diplomatic Leverage</div>
-                                              <div className="font-semibold">{modalPersonaResult.diplomatic_leverage || 'N/A'}</div>
-                                            </div>
-                                            <div className="bg-background p-2 rounded border">
-                                              <div className="text-xs text-muted-foreground">Economic Exposure</div>
-                                              <div className="font-semibold">{modalPersonaResult.economic_exposure || 'N/A'}</div>
+                                              <div className="font-semibold text-sm">{modalPersonaResult.diplomatic_leverage || 'N/A'}</div>
+                                              <div className="text-xs text-muted-foreground mt-2">Economic Exposure</div>
+                                              <div className="font-semibold text-sm">{modalPersonaResult.economic_exposure || 'N/A'}</div>
                                             </div>
                                           </div>
 
-                                          {/* Allies & Adversaries Impact */}
-                                          {(modalPersonaResult.allies_impact || modalPersonaResult.adversaries_impact) && (
-                                            <div className="grid grid-cols-1 gap-2">
-                                              {modalPersonaResult.allies_impact && (
-                                                <div className="bg-blue-50/50 dark:bg-blue-900/20 p-2 rounded border border-blue-100 dark:border-blue-800">
-                                                  <div className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">Impact on Allies</div>
-                                                  <div className="text-xs">{modalPersonaResult.allies_impact}</div>
-                                                </div>
-                                              )}
-                                              {modalPersonaResult.adversaries_impact && (
-                                                <div className="bg-red-50/50 dark:bg-red-900/20 p-2 rounded border border-red-100 dark:border-red-800">
-                                                  <div className="text-xs font-medium text-red-700 dark:text-red-300 mb-1">Impact on Adversaries</div>
-                                                  <div className="text-xs">{modalPersonaResult.adversaries_impact}</div>
-                                                </div>
-                                              )}
+                                          {/* Strategic Grid: Allies, Adversaries, Competitors */}
+                                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            {/* Allies */}
+                                            <div className="bg-blue-50/50 dark:bg-blue-950/10 p-4 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                                              <div className="flex items-center gap-2 mb-2 text-blue-700 dark:text-blue-300 font-semibold text-sm">
+                                                <Globe className="h-4 w-4" /> Impact on Allies
+                                              </div>
+                                              <p className="text-xs leading-relaxed text-muted-foreground">
+                                                {modalPersonaResult.allies_impact || "No significant impact detected."}
+                                              </p>
                                             </div>
-                                          )}
 
-                                          {/* Good For / Bad For */}
-                                          <div className="grid grid-cols-2 gap-4">
+                                            {/* Adversaries */}
+                                            <div className="bg-red-50/50 dark:bg-red-950/10 p-4 rounded-lg border border-red-100 dark:border-red-900/50">
+                                              <div className="flex items-center gap-2 mb-2 text-red-700 dark:text-red-300 font-semibold text-sm">
+                                                <AlertTriangle className="h-4 w-4" /> Impact on Adversaries
+                                              </div>
+                                              <p className="text-xs leading-relaxed text-muted-foreground">
+                                                {modalPersonaResult.adversaries_impact || "No significant impact detected."}
+                                              </p>
+                                            </div>
+
+                                            {/* Competitors (New) */}
+                                            <div className="bg-amber-50/50 dark:bg-amber-950/10 p-4 rounded-lg border border-amber-100 dark:border-amber-900/50">
+                                              <div className="flex items-center gap-2 mb-2 text-amber-700 dark:text-amber-300 font-semibold text-sm">
+                                                <TrendingUp className="h-4 w-4" /> Competitive Landscape
+                                              </div>
+                                              <div className="space-y-2">
+                                                {(modalPersonaResult.competitive_countries || []).length === 0 ? (
+                                                  <p className="text-xs text-muted-foreground">No specific competitor impact.</p>
+                                                ) : (
+                                                  modalPersonaResult.competitive_countries.map((comp: any, i: number) => (
+                                                    <div key={i} className="bg-background/50 p-2 rounded border border-amber-200/50 dark:border-amber-800/50">
+                                                      <div className="flex justify-between items-start mb-1">
+                                                        <span className="font-medium text-xs">{comp.country}</span>
+                                                        <Badge variant="outline" className="text-[10px] h-4 px-1">{comp.impact_type}</Badge>
+                                                      </div>
+                                                      <p className="text-[10px] text-muted-foreground leading-tight">{comp.reason}</p>
+                                                    </div>
+                                                  ))
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {/* Winners & Losers */}
+                                          <div className="grid grid-cols-2 gap-6 pt-2">
                                             <div>
-                                              <div className="text-sm font-medium mb-1 text-green-600 dark:text-green-400">Beneficiaries</div>
-                                              <ul className="list-disc list-inside text-xs space-y-1">
-                                                {(modalPersonaResult.goodFor || []).length === 0 && <li className="text-muted-foreground">None identified</li>}
+                                              <h4 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">Beneficiaries</h4>
+                                              <div className="flex flex-wrap gap-2">
                                                 {(modalPersonaResult.goodFor || []).map((g: string, i: number) => (
-                                                  <li key={`good-${i}`}>{g}</li>
+                                                  <Badge key={i} variant="secondary" className="bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800">
+                                                    {g}
+                                                  </Badge>
                                                 ))}
-                                              </ul>
+                                                {(modalPersonaResult.goodFor || []).length === 0 && <span className="text-xs text-muted-foreground">None identified</span>}
+                                              </div>
                                             </div>
-
                                             <div>
-                                              <div className="text-sm font-medium mb-1 text-red-600 dark:text-red-400">Disadvantaged</div>
-                                              <ul className="list-disc list-inside text-xs space-y-1">
-                                                {(modalPersonaResult.badFor || []).length === 0 && <li className="text-muted-foreground">None identified</li>}
+                                              <h4 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-3">At Risk</h4>
+                                              <div className="flex flex-wrap gap-2">
                                                 {(modalPersonaResult.badFor || []).map((b: string, i: number) => (
-                                                  <li key={`bad-${i}`}>{b}</li>
+                                                  <Badge key={i} variant="secondary" className="bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800">
+                                                    {b}
+                                                  </Badge>
                                                 ))}
-                                              </ul>
+                                                {(modalPersonaResult.badFor || []).length === 0 && <span className="text-xs text-muted-foreground">None identified</span>}
+                                              </div>
                                             </div>
                                           </div>
 
-                                          {/* Recommendation */}
-                                          <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded border border-blue-100 dark:border-blue-900">
-                                            <div className="text-sm font-medium mb-1 text-blue-700 dark:text-blue-300">Strategic Recommendation</div>
-                                            <div className="text-sm italic">"{modalPersonaResult.recommendation}"</div>
+                                          {/* Strategic Advice */}
+                                          <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800 mt-2">
+                                            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                                              <div className="h-2 w-2 rounded-full bg-primary" />
+                                              Strategic Recommendation
+                                            </h4>
+                                            <p className="text-sm text-muted-foreground italic mb-4">"{modalPersonaResult.recommendation}"</p>
+
+                                            <div className="space-y-2">
+                                              <h5 className="text-xs font-semibold uppercase text-muted-foreground">Actionable Steps</h5>
+                                              <div className="grid gap-2">
+                                                {(modalPersonaResult.steps || []).map((step: string, i: number) => (
+                                                  <div key={i} className="flex gap-3 items-start text-sm bg-background p-2 rounded border">
+                                                    <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold">{i + 1}</span>
+                                                    <span>{step}</span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
                                           </div>
-                                        </div>
+                                        </>
                                       )}
 
                                       {/* Show raw fallback if model returned non-JSON or error */}
                                       {!modalPersonaLoading && modalPersonaResult.error && (
-                                        <div className="text-xs text-destructive">{modalPersonaResult.error}</div>
+                                        <div className="p-4 bg-destructive/10 text-destructive rounded-lg text-sm text-center">
+                                          {modalPersonaResult.error}
+                                        </div>
                                       )}
                                     </div>
                                   )}

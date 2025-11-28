@@ -26,21 +26,6 @@ export function SectorWatch({ focusArea, onArticleSelect }: { focusArea: string,
                 const data = await res.json()
                 if (data.articles) {
                     setArticles(data.articles)
-                    // Trigger batch analysis
-                    fetch('/api/batch-analyze', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ articles: data.articles.slice(0, 4) })
-                    })
-                        .then(r => r.json())
-                        .then(analysisData => {
-                            if (analysisData.analyses) {
-                                const map: Record<string, any> = {}
-                                analysisData.analyses.forEach((a: any) => map[a.url] = a)
-                                setAnalyses(map)
-                            }
-                        })
-                        .catch(console.error)
                 }
             } catch (e) {
                 console.error(e)
@@ -76,11 +61,9 @@ export function SectorWatch({ focusArea, onArticleSelect }: { focusArea: string,
                     <TrendingUp className="h-5 w-5 text-emerald-500" />
                     Market Intelligence: {focusArea}
                 </h3>
-                <Badge variant="outline" className="text-emerald-400 bg-emerald-500/10 border-emerald-500/30">Live Feed</Badge>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {articles.map((article, i) => {
-                    const analysis = analyses[article.url]
                     return (
                         <Card key={i} className="group hover:shadow-2xl transition-all duration-300 bg-slate-900/50 border-slate-800 hover:border-emerald-500/50 cursor-pointer backdrop-blur-sm" onClick={() => handleCardClick(article)}>
                             <CardHeader className="pb-3">
@@ -94,18 +77,6 @@ export function SectorWatch({ focusArea, onArticleSelect }: { focusArea: string,
                             </CardHeader>
                             <CardContent>
                                 <p className="text-xs text-slate-400 line-clamp-3 mb-3">{article.description}</p>
-                                <div className="flex items-center gap-2 mt-auto">
-                                    {analysis ? (
-                                        <>
-                                            <Badge variant="outline" className={`text - [10px] px - 1.5 py - 0 ${analysis.significance > 7 ? 'text-red-400 border-red-900 bg-red-900/20' : 'text-emerald-400 border-emerald-900 bg-emerald-900/20'} `}>
-                                                {analysis.significance > 7 ? 'High Impact' : 'Stable'}
-                                            </Badge>
-                                            <span className="text-[10px] text-slate-500">{analysis.region}</span>
-                                        </>
-                                    ) : (
-                                        <span className="text-[10px] text-slate-600 animate-pulse">Analyzing market impact...</span>
-                                    )}
-                                </div>
                             </CardContent>
                         </Card>
                     )

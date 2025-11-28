@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       - "badFor": Array of strings (Who loses? e.g. competitors, specific sectors)
       - "allies_impact": string (1 sentence on how this affects ${targetCountry}'s allies)
       - "adversaries_impact": string (1 sentence on how this affects ${targetCountry}'s adversaries)
-      - "competitors": Array of objects { "name": "string", "effect": "string", "reason": "string" } (Identify 1-2 key rival nations/entities and the effect on them)
+      - "competitive_countries": Array of objects { "country": "string", "impact_type": "Opportunity" | "Threat" | "Neutral", "reason": "string" } (Identify 2-3 key competitor nations and the specific impact on them)
       - "recommendation": string (1-2 sentences strategic advice)
       - "steps": Array of strings (3 concrete, actionable policy steps ${targetCountry} should take immediately)
 
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     parsed.goodFor = Array.isArray(parsed.goodFor) ? parsed.goodFor : (parsed.goodFor ? [parsed.goodFor] : [])
     parsed.badFor = Array.isArray(parsed.badFor) ? parsed.badFor : (parsed.badFor ? [parsed.badFor] : [])
     parsed.steps = Array.isArray(parsed.steps) ? parsed.steps : (parsed.steps ? [parsed.steps] : [])
-    parsed.competitors = Array.isArray(parsed.competitors) ? parsed.competitors : []
+    parsed.competitive_countries = Array.isArray(parsed.competitive_countries) ? parsed.competitive_countries : []
 
     return NextResponse.json(parsed)
   } catch (error) {

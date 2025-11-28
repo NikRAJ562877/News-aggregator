@@ -94,10 +94,25 @@ function detectRegion(article: any): string {
   return 'Global'
 }
 
+// Cache for API results (Articles) to save quotas
+// Map<cacheKey, { data: any, timestamp: number }>
+const resultCache = new Map<string, { data: any, timestamp: number }>()
+const RESULT_CACHE_TTL = 2 * 60 * 60 * 1000 // 2 hours
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const persona = searchParams.get('persona')
   const focusArea = searchParams.get('focusArea')
+
+  // Generate a unique cache key
+  const cacheKey = `${persona}-${focusArea}`
+
+  // Check Cache
+  const cachedResult = resultCache.get(cacheKey)
+  if (cachedResult && (Date.now() - cachedResult.timestamp < RESULT_CACHE_TTL)) {
+    console.log(`Serving cached results for ${cacheKey}`)
+    return NextResponse.json(cachedResult.data)
+  }
 
   const newsApiKey = process.env.NEWSAPI_KEY
   const newsDataKey = process.env.NEWSDATA_API_KEY
@@ -110,38 +125,49 @@ export async function GET(request: NextRequest) {
 
   try {
     // --- EXECUTIVE PERSONA (Innovation Radar) ---
-    if (persona === 'Executive' && focusArea && googleKey && googleCx) {
-      console.log(`Fetching Innovation Radar for ${focusArea}`)
-      const queries = [
-        `"${focusArea}" (patent OR "new startup" OR "research breakthrough" OR "disruptive technology") -stock -market`,
-        `"${focusArea}" future trends forecast 2025`
-      ]
+    if (persona === 'Executive' && focusArea) {
+      if (googleKey && googleCx) {
+        console.log(`Fetching Innovation Radar for ${focusArea}`)
+        const queries = [
+          `"${focusArea}" (patent OR "new startup" OR "research breakthrough" OR "disruptive technology") -stock -market`,
+          `"${focusArea}" future trends forecast 2025`
+        ]
 
-      const promises = queries.map(async q => {
-        const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=2&dateRestrict=m1`
-        const res = await fetch(url)
-        if (!res.ok) return []
-        const data = await res.json()
-        return data.items || []
-      })
+        const promises = queries.map(async q => {
+          const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=2&dateRestrict=m1`
+          const res = await fetch(url)
+          if (!res.ok) {
+            console.warn(`Google Search failed: ${res.status} ${res.statusText}`)
+            return []
+          }
+          const data = await res.json()
+          return data.items || []
+        })
 
-      const results = (await Promise.all(promises)).flat()
+        const results = (await Promise.all(promises)).flat()
 
-      const articles: NewsArticle[] = results.map((item: any) => ({
-        title: item.title,
-        description: item.snippet,
-        url: item.link,
-        urlToImage: item.pagemap?.cse_image?.[0]?.src || null,
-        publishedAt: new Date().toISOString(), // Google Search doesn't always give precise dates in snippet
-        source: { name: item.displayLink },
-        content: item.snippet,
-        category: "Innovation",
-        region: "Global",
-        significance: 8, // High default for executive intel
-        sourceReliability: "High"
-      }))
+        if (results.length > 0) {
+          const articles: NewsArticle[] = results.map((item: any) => ({
+            title: item.title,
+            description: item.snippet,
+            url: item.link,
+            urlToImage: item.pagemap?.cse_image?.[0]?.src || null,
+            publishedAt: new Date().toISOString(), // Google Search doesn't always give precise dates in snippet
+            source: { name: item.displayLink },
+            content: item.snippet,
+            category: "Innovation",
+            region: "Global",
+            significance: 8, // High default for executive intel
+            sourceReliability: "High"
+          }))
 
-      return NextResponse.json({ articles })
+          // Cache the result
+          resultCache.set(cacheKey, { data: { articles }, timestamp: Date.now() })
+          return NextResponse.json({ articles })
+        }
+      } else {
+        console.warn("Google Custom Search keys missing, falling back to standard NewsAPI")
+      }
     }
 
     // --- PROFESSIONAL PERSONA (Sector Watch) ---
@@ -166,6 +192,9 @@ export async function GET(request: NextRequest) {
           significance: 7,
           sourceReliability: "Medium"
         }))
+
+        // Cache the result
+        resultCache.set(cacheKey, { data: { articles }, timestamp: Date.now() })
         return NextResponse.json({ articles })
       } else {
         console.warn("NewsData.io failed, falling back to NewsAPI")
